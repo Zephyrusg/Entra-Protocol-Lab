@@ -2,15 +2,20 @@ import os
 import secrets
 import textwrap
 import base64, hashlib,secrets
+from os.path import expandvars
 from urllib.parse import urlparse
 
 from flask_session import Session
 from flask import Flask, redirect, request, session, make_response
 from flask import Response  # type: ignore
 from flask import url_for  # type: ignore
+from flask.typing import ResponseReturnValue
+from authlib.integrations.flask_client import FlaskOAuth2App
+
 from authlib.integrations.flask_client import OAuth
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.settings import OneLogin_Saml2_Settings
+from typing import Protocol, cast, Optional, runtime_checkable
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -18,25 +23,28 @@ load_dotenv()
 PORT = int(os.getenv("PORT", "3000"))
 SESSION_SECRET = os.getenv("SESSION_SECRET", "change-me-in-prod")
 
-# Base URL of THIS app (used for redirects & SAML metadata)
 BASE_URL = os.getenv("BASE_URL", f"http://localhost:{PORT}").rstrip("/")
 
 # ---------- OIDC (Microsoft Entra v2) ----------
 TENANT_ID = os.getenv("TENANT_ID", "YOUR_TENANT_ID")
 OIDC_CLIENT_ID = os.getenv("OIDC_CLIENT_ID", "YOUR_OIDC_CLIENT_ID")
 OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET", "YOUR_OIDC_CLIENT_SECRET")
-OIDC_REDIRECT_URI = os.getenv("OIDC_REDIRECT_URI", f"{BASE_URL}/oidc/callback")
+
+# EXPAND any $BASE_URL references if present in the env
+OIDC_REDIRECT_URI = expandvars(os.getenv("OIDC_REDIRECT_URI", f"{BASE_URL}/oidc/callback"))
 
 # ---------- SAML (Enterprise App in Entra) ----------
 SAML_SP_ENTITY_ID = os.getenv("SAML_SP_ENTITY_ID", "urn:entra-protocol-lab:sp")
-SAML_IDP_ENTITY_ID = os.getenv("SAML_IDP_ENTITY_ID", f"https://sts.windows.net/{TENANT_ID}/")
+
+# EXPAND any $TENANT_ID references if present in the env
+SAML_IDP_ENTITY_ID = expandvars(os.getenv("SAML_IDP_ENTITY_ID", f"https://sts.windows.net/{TENANT_ID}/"))
 
 # Typically: https://login.microsoftonline.com/<TENANT_ID>/saml2
-SAML_IDP_SSO_URL = os.getenv("SAML_IDP_SSO_URL", f"https://login.microsoftonline.com/{TENANT_ID}/saml2")
-# Paste the Base64 content (no headers) of Entra's SAML Signing Certificate
+SAML_IDP_SSO_URL = expandvars(os.getenv("SAML_IDP_SSO_URL", f"https://login.microsoftonline.com/{TENANT_ID}/saml2"))
+
+# Paste ONLY the Base64 contents (no BEGIN/END lines)
 SAML_IDP_CERT_B64 = os.getenv("SAML_IDP_CERT_B64", "")
 
-# Sign AuthnRequests? For a learning lab keep this off (no SP key/cert needed)
 SAML_SIGN_REQUEST = os.getenv("SAML_SIGN_REQUEST", "false").lower() == "true"
 
 # -------------------- App Setup --------------------
@@ -93,6 +101,19 @@ def _redact(value, head: int = 8, tail: int = 4) -> str:
         return "*" * len(v)
     return f"{v[:head]}…{v[-tail:]}"
 
+
+@runtime_checkable
+class OIDCClientProto(Protocol):
+    def authorize_redirect(self, *args, **kwargs): ...
+    def authorize_access_token(self, *args, **kwargs): ...
+    def parse_id_token(self, *args, **kwargs): ...
+
+def _oidc() -> FlaskOAuth2App:
+    client = oauth.create_client("entra")
+    if client is None:
+        raise RuntimeError("OIDC client 'entra' is not registered")
+    return cast(FlaskOAuth2App, client)
+
 # -------------------- Index --------------------
 @app.get("/")
 def index() -> str:
@@ -110,7 +131,7 @@ def index() -> str:
 
 # ==================== OIDC (Auth Code + PKCE) ====================
 @app.get("/oidc/login")
-def oidc_login():
+def oidc_login() -> ResponseReturnValue:
     verifier = secrets.token_urlsafe(64)
     session["oidc_code_verifier"] = verifier
     challenge = pkce_challenge(verifier)
@@ -118,31 +139,32 @@ def oidc_login():
     nonce = secrets.token_urlsafe(32)
     session["oidc_nonce"] = nonce
 
-    return oauth.entra.authorize_redirect(
+    resp =  _oidc().authorize_redirect(
         redirect_uri=OIDC_REDIRECT_URI,
         code_challenge=challenge,
         code_challenge_method="S256",
         nonce=nonce,
-    )
+    )  # returns a valid ResponseReturnValue
+    return cast(ResponseReturnValue, resp)
 
 
 @app.get("/oidc/callback")
-def oidc_callback():
+def oidc_callback() -> ResponseReturnValue:
     verifier = session.pop("oidc_code_verifier", None)
     nonce = session.pop("oidc_nonce", None)
     if not verifier or not nonce:
         return page("OIDC Error", "<p>Missing PKCE verifier or nonce in session.</p>")
 
-    token = oauth.entra.authorize_access_token(code_verifier=verifier)
+    token = _oidc().authorize_access_token(code_verifier=verifier)
     if not token:
         return page("OIDC Error", "<p>Token exchange failed.</p>")
 
-    claims = oauth.entra.parse_id_token(token, nonce=nonce)
+    claims = _oidc().parse_id_token(token, nonce=nonce)
     session["oidc"] = {"token": token, "claims": claims}
     return redirect(url_for("oidc_user"))
 
 @app.get("/oidc/user")
-def oidc_user():
+def oidc_user() -> ResponseReturnValue:
     data = session.get("oidc")
     if not data:
         return page("OIDC User", '<p>Not signed in. <a href="/oidc/login">Login</a></p>')
@@ -156,12 +178,32 @@ def oidc_user():
     return page("OIDC User", body)
 
 @app.get("/oidc/logout")
-def oidc_logout():
+def oidc_logout() -> ResponseReturnValue:
     session.pop("oidc", None)
     end_session = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/logout?post_logout_redirect_uri={BASE_URL}"
     return redirect(end_session)
 
 # ==================== SAML (SP) ====================
+
+@runtime_checkable
+class _SamlAuthProto(Protocol):
+    def login(self, *args, **kwargs) -> str: ...
+    def process_response(self) -> None: ...
+    def is_authenticated(self) -> bool: ...
+    def get_attributes(self) -> dict: ...
+    def get_nameid(self) -> Optional[str]: ...
+    def get_session_index(self) -> Optional[str]: ...
+    def get_issuer(self) -> Optional[str]: ...
+    def get_authn_context(self) -> Optional[str]: ...
+    def logout(self, *args, **kwargs) -> str: ...
+    # Errors (the ones Pylance is now complaining about)
+    def get_errors(self) -> list[str]: ...
+    def get_last_error_reason(self) -> Optional[str]: ...
+
+    # Optional (only if you reference them)
+    def get_last_assertion_not_on_or_after(self) -> Optional[int]: ...
+    def get_session_expiration(self) -> Optional[int]: ...
+
 def _b64_to_pem(cert_b64: str) -> str:
     """Convert raw Base64 cert content to PEM with headers/64-char lines."""
     if not cert_b64:
@@ -239,19 +281,18 @@ def _prepare_flask_request():
     }
 
 
-def _saml_auth():
+def _saml_auth() -> _SamlAuthProto:
     req = _prepare_flask_request()
-    # Pass settings dict directly (supported by python3-saml)
-    return OneLogin_Saml2_Auth(req, old_settings=_saml_settings_dict())
+    return cast(_SamlAuthProto, OneLogin_Saml2_Auth(req, old_settings=_saml_settings_dict()))
 
 @app.get("/saml/login")
-def saml_login():
+def saml_login() -> ResponseReturnValue:
     auth = _saml_auth()
     # RelayState defaults to the ACS-binding-determined return
     return redirect(auth.login())
 
 @app.post("/saml/acs")
-def saml_acs():
+def saml_acs() -> ResponseReturnValue:
     auth = _saml_auth()
     auth.process_response()
     errors = auth.get_errors()
@@ -280,7 +321,7 @@ def saml_acs():
     return redirect(url_for("saml_user"))
 
 @app.get("/saml/user")
-def saml_user():
+def saml_user() -> ResponseReturnValue:
     data = session.get("saml_user")
     if not data:
         return page("SAML User", '<p>Not signed in. <a href="/saml/login">Login</a></p>')
@@ -313,13 +354,13 @@ def saml_user():
     return page("SAML User", body)
 
 @app.get("/saml/logout")
-def saml_logout():
+def saml_logout() -> ResponseReturnValue:
     # Local logout only (Entra SLO is rarely configured for simple labs)
     session.pop("saml_user", None)
     return redirect(url_for("index"))
 
 @app.get("/saml/metadata")
-def saml_metadata():
+def saml_metadata() -> ResponseReturnValue:
     settings = OneLogin_Saml2_Settings(settings=_saml_settings_dict(), sp_validation_only=True)
     metadata = settings.get_sp_metadata()
     errors = settings.validate_metadata(metadata)
