@@ -6,13 +6,38 @@ from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.settings import OneLogin_Saml2_Settings
 from ..config import settings
 from .types import _SamlAuthProto
+import os
+from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 
 BASE_URL = settings.BASE_URL  # e.g., http://localhost:3000 or https://xxx.ngrok-free.app
 SAML_SP_ENTITY_ID = settings.SAML_SP_ENTITY_ID
-SAML_IDP_ENTITY_ID = settings.SAML_IDP_ENTITY_ID
-SAML_IDP_SSO_URL = settings.SAML_IDP_SSO_URL
-SAML_IDP_CERT_B64 = settings.SAML_IDP_CERT_B64
 SAML_SIGN_REQUEST = settings.SAML_SIGN_REQUEST
+
+def _build_ms_metadata_url(tenant_id: str, app_id: str | None) -> str:
+    base = f"https://login.microsoftonline.com/{tenant_id}/federationmetadata/2007-06/federationmetadata.xml"
+    return f"{base}?appid={app_id}" if app_id else base
+
+def _load_idp_from_metadata() -> dict:
+    """
+    Returns an 'idp' dict for python3-saml settings by parsing Entra's federation metadata.
+    Prefers explicit metadata URL; else builds it from TENANT_ID (+ optional SAML_APP_ID).
+    """
+    # Prefer explicit URL if you set it
+    explicit_url = getattr(settings, "SAML_IDP_METADATA_URL", None) or os.getenv("SAML_IDP_METADATA_URL")
+
+    if explicit_url:
+        url = explicit_url
+    else:
+        tenant_id = getattr(settings, "TENANT_ID", None) or os.getenv("TENANT_ID")
+        if not tenant_id:
+            raise RuntimeError("TENANT_ID (or SAML_IDP_METADATA_URL) is required to load SAML IdP metadata.")
+        # If your SAML app has a different App (client) ID than OIDC, set SAML_APP_ID
+        app_id = getattr(settings, "SAML_APP_ID", None)
+        url = _build_ms_metadata_url(tenant_id, app_id)
+
+    idp_parsed = OneLogin_Saml2_IdPMetadataParser.parse_remote(url, validate_cert=True, timeout=10)
+    # idp_parsed = {"idp": {"entityId": "...", "singleSignOnService": {"url": "..."}, "x509cert" or "x509certMulti": ...}}
+    return idp_parsed["idp"]
 
 def _b64_to_pem(cert_b64: str) -> str:
     if not cert_b64:
@@ -41,14 +66,7 @@ def _saml_settings_dict() -> dict:
             "wantAssertionsSigned": False,
             "wantMessageSigned": False,
         },
-        "idp": {
-            "entityId": SAML_IDP_ENTITY_ID,
-            "singleSignOnService": {
-                "url": SAML_IDP_SSO_URL,
-                "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
-            },
-            "x509cert": _b64_to_pem(SAML_IDP_CERT_B64),
-        },
+        "idp": _load_idp_from_metadata(),
         "security": {
             "authnRequestsSigned": SAML_SIGN_REQUEST,
             "wantAssertionsSigned": False,

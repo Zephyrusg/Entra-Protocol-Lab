@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.log
+
+# VCS & tooling
+.git
+.gitignore
+
+# Env & secrets
+.env
+.env.*
+*.pem
+*.key
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+
+# Archives / large stuff
+*.zip
+*.tar
+*.tar.gz
+
+#uv

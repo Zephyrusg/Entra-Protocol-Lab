@@ -1,3 +1,4 @@
+export PORT=
 export BASE_URL=""
 export SESSION_SECRET="dev-change-me"
 export TENANT_ID=""
@@ -7,10 +8,6 @@ export OIDC_REDIRECT_URI="$BASE_URL/oidc/callback"
 
 # ---- SAML (Microsoft Entra Enterprise App) ----
 export SAML_SP_ENTITY_ID=""
-export SAML_IDP_SSO_URL="https://login.microsoftonline.com/$TENANT_ID/saml2"
-export SAML_IDP_ENTITY_ID=""
-
-# Paste the Base64 *contents* (no BEGIN/END lines) of the SAML signing certificate from Entra:
-export SAML_IDP_CERT_B64=''
-
+export SAML_APP_ID=""
+export=XMLSEC_BINARY=/usr/bin/xmlsec1
 export SHOW_FULL_COOKIES=0

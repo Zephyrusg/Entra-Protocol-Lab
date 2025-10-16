@@ -15,9 +15,7 @@ class Settings:
     OIDC_REDIRECT_URI = expandvars(os.getenv("OIDC_REDIRECT_URI", f"{BASE_URL}/oidc/callback"))
 
     SAML_SP_ENTITY_ID = os.getenv("SAML_SP_ENTITY_ID", "urn:entra-protocol-lab:sp")
-    SAML_IDP_ENTITY_ID = expandvars(os.getenv("SAML_IDP_ENTITY_ID", f"https://sts.windows.net/{TENANT_ID}/"))
-    SAML_IDP_SSO_URL = expandvars(os.getenv("SAML_IDP_SSO_URL", f"https://login.microsoftonline.com/{TENANT_ID}/saml2"))
-    SAML_IDP_CERT_B64 = os.getenv("SAML_IDP_CERT_B64", "")
+    SAML_APP_ID = os.getenv("SAML_APP_ID", "SAML_APP_ID")
     SAML_SIGN_REQUEST = os.getenv("SAML_SIGN_REQUEST", "false").lower() == "true"
 
 settings = Settings()

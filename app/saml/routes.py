@@ -2,8 +2,10 @@
 from flask import Blueprint, redirect, session, make_response, request, current_app
 from flask.typing import ResponseReturnValue
 from onelogin.saml2.utils import OneLogin_Saml2_Utils
-from .settings import saml_auth, saml_settings, SAML_IDP_ENTITY_ID
+from .settings import saml_auth, saml_settings
 from ..utils.html import page, pretty_json, redact
+
+from onelogin.saml2.auth import OneLogin_Saml2_Auth
 import os
 
 from typing import Any, Callable, Optional
@@ -11,7 +13,6 @@ from typing import Any, Callable, Optional
 def _maybe_call(obj: Any, name: str, *args, **kwargs):
     fn: Optional[Callable] = getattr(obj, name, None)
     return fn(*args, **kwargs) if callable(fn) else None
-
 
 bp = Blueprint("saml", __name__)
 
@@ -33,11 +34,11 @@ def acs() -> ResponseReturnValue:
             "SAML Error",
             f"<p>Errors: {errors}</p><pre>{auth.get_last_error_reason() or ''}</pre>",
          )
-  
+
     if not auth.is_authenticated():
         return page("SAML Error", "<p>Not authenticated.</p>")
-    
-    issuer_val = _maybe_call(auth, "get_issuer") or SAML_IDP_ENTITY_ID
+
+    issuer_val = _maybe_call(auth, "get_issuer") or auth.get_settings().get_idp_data().get("entityId")
     authn_ctx_val = _maybe_call(auth, "get_authn_context")
 
     # Minimal profile for demo
@@ -46,7 +47,7 @@ def acs() -> ResponseReturnValue:
         "session_index": auth.get_session_index(),
         "attributes": auth.get_attributes(),
         "issuer": issuer_val,
-        "authn_context": authn_ctx_val 
+        "authn_context": authn_ctx_val
 ,
         }
     session["saml"] = data
@@ -98,7 +99,7 @@ def logout() -> ResponseReturnValue:
 
     auth = saml_auth()
     slo_url = auth.logout(name_id=nameid, session_index=session_index, return_to="/")
-    return redirect(slo_url)    
+    return redirect(slo_url)
 
 @bp.get("/metadata")
 def metadata() -> ResponseReturnValue:
