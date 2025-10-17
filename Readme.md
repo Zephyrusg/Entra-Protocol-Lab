@@ -80,7 +80,8 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 1. Go to **Azure Portal** → **Microsoft Entra ID** → **App registrations**
 2. Create a new registration:
    - **Name**: Entra Protocol Lab OIDC
-   - **Redirect URI**: `http://localhost:3000/oidc/callback`
+   - **OIDC Redirect URI**: `http://localhost:3000/oidc/callback`
+   - **SAML Redircet URI** `http://localhost:3000/saml/acs`
 3. Note the **Application (client) ID** and **Directory (tenant) ID**
 4. Create a **client secret** in **Certificates & secrets**
 
