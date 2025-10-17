@@ -7,14 +7,13 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 - 🔐 **OIDC Authentication**: Test OpenID Connect flows with Entra ID
 - 🎫 **SAML Authentication**: Test SAML 2.0 flows with Entra Enterprise Applications
 - 🔍 **Token Inspection**: View and debug ID tokens, access tokens, and SAML assertions
-- 🌐 **Multiple Environments**: Support for local development and deployed environments
 - 📋 **Response Analysis**: Pretty-printed JSON for easy debugging
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.14+
+- Python 3.14
 - Microsoft Entra ID tenant
 - Registered OIDC application in Entra
 - SAML Enterprise Application in Entra (for SAML testing)
@@ -33,42 +32,39 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
    ```bash
    # Using uv (recommended)
    uv sync
-   
-   # Or using pip
-   pip install -r requirements.txt
    ```
 
 3. **Configure environment variables**
 
-   Create a `.env.local` file in the project root (this file is gitignored):
+   Copy the sample environment file and configure it for your setup:
 
    ```bash
-   # App Configuration
-   PORT=3000
-   BASE_URL=http://localhost:3000
-   SESSION_SECRET=your-secure-session-secret-here
+   cp .sampleEnv .env
+   ```
+
+   Edit `.env` with your Entra ID configuration:
+
+   ```bash
+   export PORT=3000
+   export BASE_URL="http://localhost:3000"
+   export SESSION_SECRET="your-secure-session-secret-here"
+   export TENANT_ID="your-tenant-id"
+   export OIDC_CLIENT_ID="your-oidc-client-id"
+   export OIDC_CLIENT_SECRET="your-oidc-client-secret"
+   export OIDC_REDIRECT_URI="$BASE_URL/oidc/callback"
    
-   # OIDC (Entra ID App Registration)
-   TENANT_ID=your-tenant-id
-   OIDC_CLIENT_ID=your-oidc-client-id
-   OIDC_CLIENT_SECRET=your-oidc-client-secret
-   OIDC_REDIRECT_URI=http://localhost:3000/oidc/callback
-   
-   # SAML (Entra Enterprise Application)
-   SAML_SP_ENTITY_ID=urn:entra-protocol-lab:sp
-   SAML_APP_ID=your-saml-app-id
-   XMLSEC_BINARY=/usr/bin/xmlsec1
-   SHOW_FULL_COOKIES=1
+   # SAML Configuration
+   export SAML_SP_ENTITY_ID="urn:entra-protocol-lab:sp"
+   export SAML_APP_ID="your-saml-app-id"
+   export XMLSEC_BINARY=/usr/bin/xmlsec1
+   export SHOW_FULL_COOKIES=1
    ```
 
 4. **Run the application**
 
    ```bash
-   # Using uv
-   uv run python run.py
-   
-   # Or directly with Python
-   python run.py
+   # Source environment variables and run
+   source .env && uv run python run.py
    ```
 
 5. **Access the application**
@@ -142,6 +138,34 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 
 ## Docker Support
 
+For Docker deployment, create a `.env.local` file with your configuration:
+
+```bash
+# Create Docker environment file
+cp .sampleEnv .env.local
+```
+
+Edit `.env.local` with Docker-appropriate values (note the different format without `export`):
+
+```bash
+# App Configuration
+PORT=3000
+BASE_URL=http://localhost:3000
+SESSION_SECRET=your-secure-session-secret-here
+
+# OIDC (Entra ID App Registration)
+TENANT_ID=your-tenant-id
+OIDC_CLIENT_ID=your-oidc-client-id
+OIDC_CLIENT_SECRET=your-oidc-client-secret
+OIDC_REDIRECT_URI=http://localhost:3000/oidc/callback
+
+# SAML (Entra Enterprise Application)
+SAML_SP_ENTITY_ID=urn:entra-protocol-lab:sp
+SAML_APP_ID=your-saml-app-id
+XMLSEC_BINARY=/usr/bin/xmlsec1
+SHOW_FULL_COOKIES=1
+```
+
 Build and run with Docker:
 
 ```bash
@@ -151,6 +175,8 @@ docker build -t entra-protocol-lab .
 # Run with environment file
 docker run -p 3000:3000 --env-file .env.local entra-protocol-lab
 ```
+
+> **Note**: `.env.local` is gitignored and used specifically for Docker deployments, while `.env` (from `.sampleEnv`) is used for local development.
 
 ## Development
 
@@ -171,19 +197,20 @@ entra-protocol-lab/
 │   └── utils/               # Shared utilities
 │       ├── crypto.py        # PKCE helpers
 │       └── html.py          # HTML templates
-├── run.py                   # Development server
-├── wsgi.py                  # Production WSGI entry point
-└── .env.local              # Environment configuration (create this)
+├── .sampleEnv              # Environment template
+├── .env                    # Local environment (create from .sampleEnv)
+├── .env.local             # Docker environment (create for Docker)
+├── run.py                 # Development server
+└── wsgi.py               # Production WSGI entry point
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Import Errors**: Ensure all folders have `__init__.py` files
-2. **SAML Signature Issues**: Check `XMLSEC_BINARY` path
-3. **Redirect URI Mismatch**: Ensure URLs match between Entra and `.env.local`
-4. **Session Issues**: Generate a strong `SESSION_SECRET`
+1. **SAML Signature Issues**: Check `XMLSEC_BINARY` path
+2. **Redirect URI Mismatch**: Ensure URLs match between Entra and your environment file (`.env` or `.env.local`)
+3. **Session Issues**: Generate a strong `SESSION_SECRET`
 
 ### Debug Mode
 
