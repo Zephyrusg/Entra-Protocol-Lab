@@ -1,4 +1,6 @@
-from typing import Protocol, Optional, runtime_checkable
+from typing import Protocol, runtime_checkable, Optional, Dict, List, TYPE_CHECKING
+if TYPE_CHECKING:
+    from onelogin.saml2.settings import OneLogin_Saml2_Settings
 
 @runtime_checkable
 class _SamlAuthProto(Protocol):
@@ -16,6 +18,7 @@ class _SamlAuthProto(Protocol):
 
 
     # Extra info
+    def get_settings(self) -> "OneLogin_Saml2_Settings": ...
     def get_issuer(self) -> Optional[str]: ...
     def get_authn_context(self) -> Optional[str]: ...
 
