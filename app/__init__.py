@@ -97,7 +97,6 @@ def create_app() -> Flask:
             f"<ul><li>OIDC: <code>/oidc/login</code> → <code>/oidc/user</code></li>"
             f"<li>SAML: <code>/saml/login</code> → <code>/saml/user</code></li></ul>"
             f"<p><b>BASE_URL:</b> {settings.BASE_URL}</p>"
-            f"<p><b>BASE_URL:</b> {settings.BASE_URL}</p>"
         )
 
 
