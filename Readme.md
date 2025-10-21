@@ -89,8 +89,7 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 1. Go to **Azure Portal** → **Microsoft Entra ID** → **App registrations**
 2. Create a new registration:
    - **Name**: Entra Protocol Lab OIDC
-   - **OIDC Redirect URI**: `http://localhost:3000/oidc/callback`
-   - **SAML Redircet URI** `http://localhost:3000/saml/acs`
+   - **Redirect URI**: `http://localhost:3000/oidc/callback` (or your BASE_URL + /oidc/callback)
 3. Note the **Application (client) ID** and **Directory (tenant) ID**
 4. Create a **client secret** in **Certificates & secrets**
 
@@ -100,7 +99,7 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 2. Create a new application:
    - **Name**: Entra Protocol Lab SAML
    - **Identifier (Entity ID)**: `urn:entra-protocol-lab:sp`
-   - **Reply URL**: `http://localhost:3000/saml/acs`
+   - **Reply URL**: `http://localhost:3000/saml/acs` (or your BASE_URL + /saml/acs)
 3. Configure SAML settings and note the **Application ID**
 
 ### Environment Variables
@@ -116,7 +115,6 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 | `OIDC_REDIRECT_URI` | Auto-set to BASE_URL + /oidc/callback | No* |
 | `SAML_SP_ENTITY_ID` | SAML Service Provider entity ID | Yes |
 | `SAML_APP_ID` | SAML Enterprise Application ID | Yes |
-| `XMLSEC_BINARY` | Path to xmlsec1 binary | No |
 | `SHOW_FULL_COOKIES` | Show full cookie values in debug | No |
 
 *\* Automatically constructed from BASE_URL - do not set manually*
