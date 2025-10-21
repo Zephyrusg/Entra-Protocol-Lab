@@ -1,65 +1,111 @@
+from __future__ import annotations
 
+import json
 from flask import Blueprint, redirect, session, make_response, request, current_app
 from flask.typing import ResponseReturnValue
-from onelogin.saml2.utils import OneLogin_Saml2_Utils
-from .settings import saml_auth, saml_settings
+
+from .settings import saml_client, sp_config
 from ..utils.html import page, pretty_json, redact
 
-from onelogin.saml2.auth import OneLogin_Saml2_Auth
+from saml2 import BINDING_HTTP_POST
+from typing import Any, Dict, List, Tuple
 import os
 
-from typing import Any, Callable, Optional
 
-def _maybe_call(obj: Any, name: str, *args, **kwargs):
-    fn: Optional[Callable] = getattr(obj, name, None)
-    return fn(*args, **kwargs) if callable(fn) else None
+bp = Blueprint("saml", __name__, url_prefix="/saml")
 
-bp = Blueprint("saml", __name__)
+def _jsonable_attrs(attrs: Dict[str, List[Any]] | None) -> Dict[str, List[str]]:
+    out: Dict[str, List[str]] = {}
+    if not attrs:
+        return out
+    for k, vals in attrs.items():
+        if isinstance(vals, (list, tuple)):
+            out[k] = ["" if v is None else str(v) for v in vals]
+        else:
+            out[k] = ["" if vals is None else str(vals)]
+    return out
+
+def _safe_issuer(authn) -> str | None:
+    # pysaml2 exposes issuer() as a METHOD
+    try:
+        if hasattr(authn, "issuer") and callable(authn.issuer):
+            return str(authn.issuer())
+    except Exception:
+        pass
+    return None
+
+def _safe_authn_context(authn) -> list | str | None:
+    # authn_info can be a list of tuples; normalize to strings
+    info = None
+    try:
+        info = authn.authn_info() if callable(getattr(authn, "authn_info", None)) else getattr(authn, "authn_info", None)
+    except Exception:
+        info = None
+    if info is None:
+        return None
+    if isinstance(info, (list, tuple)):
+        norm = []
+        for item in info:
+            if isinstance(item, (list, tuple)):
+                norm.append([("" if x is None else str(x)) for x in item])
+            else:
+                norm.append("" if item is None else str(item))
+        return norm
+    return "" if info is None else str(info)
+
 
 @bp.get("/login")
 def login() -> ResponseReturnValue:
-    auth = saml_auth()
-    # RelayState to /saml/user to match your original flow
-    return redirect(auth.login(return_to="/saml/user"))
+    client = saml_client()
+    reqid, info = client.prepare_for_authenticate()
+    # info['headers'] is a list of (Name, Value); find the redirect Location
+    for k, v in info.get("headers", []):
+        if k.lower() == "location":
+            return redirect(v, code=302)
+    return page("SAML Error", "<p>Failed to build SAML AuthnRequest.</p>")
 
 @bp.post("/acs")
-def acs() -> ResponseReturnValue:
-    auth = saml_auth()
-    auth.process_response()
+def acs():
+    client = saml_client()
+    saml_response = request.form.get("SAMLResponse")
+    if not saml_response:
+        return page("SAML Error", "<p>Missing SAMLResponse</p>")
 
+    try:
+        authn = client.parse_authn_request_response(saml_response, BINDING_HTTP_POST)
+    except Exception as e:
+        return page("SAML Error", f"<p>Parse/verify failed:</p><pre>{e}</pre>")
 
-    errors = auth.get_errors()
-    if errors:
-        return page(
-            "SAML Error",
-            f"<p>Errors: {errors}</p><pre>{auth.get_last_error_reason() or ''}</pre>",
-         )
+    ident = authn.get_identity() if authn else None
+    if not ident:
+        return page("SAML Error", "<p>No attributes / not authenticated.</p>")
 
-    if not auth.is_authenticated():
-        return page("SAML Error", "<p>Not authenticated.</p>")
+    # NameID
+    nameid = None
+    try:
+        subj = authn.get_subject()
+        nameid = getattr(subj, "text", None) or str(subj)
+    except Exception:
+        nameid = None
 
-    issuer_val = _maybe_call(auth, "get_issuer") or auth.get_settings().get_idp_data().get("entityId")
-    authn_ctx_val = _maybe_call(auth, "get_authn_context")
-
-    # Minimal profile for demo
-    data = {
-        "nameid": auth.get_nameid(),
-        "session_index": auth.get_session_index(),
-        "attributes": auth.get_attributes(),
-        "issuer": issuer_val,
-        "authn_context": authn_ctx_val
-,
-        }
-    session["saml"] = data
-    return redirect("/saml/user")
+    # 🚫 Do NOT stash authn/metadata/etc. in session. Only plain data:
+    session["saml_user"] = {
+        "nameid": nameid,
+        "attributes": _jsonable_attrs(ident),
+        "issuer": _safe_issuer(authn),
+        "authn_context": _safe_authn_context(authn),
+    }
+    return redirect("/saml/user", code=302)
 
 @bp.get("/user")
 def user() -> ResponseReturnValue:
-    data = session.get("saml")
+    data = session.get("saml_user")
     if not data:
         return page("SAML User", "<p>Not signed in. <a href='/saml/login'>Login</a></p>")
 
-    # decide whether to show full cookie values
+    # reveal full cookie values if:
+    #  - URL has ?showcookie=1|true|yes  OR
+    #  - env SHOW_FULL_COOKIES=1|true|yes
     show_full = (
         str(request.args.get("showcookie", "")).lower() in ("1", "true", "yes")
         or str(os.getenv("SHOW_FULL_COOKIES", "")).lower() in ("1", "true", "yes")
@@ -69,12 +115,15 @@ def user() -> ResponseReturnValue:
     cookie_name = current_app.config.get("SESSION_COOKIE_NAME", "session")
     session_cookie_val = request.cookies.get(cookie_name, "") or ""
 
-    session_cookie_display = session_cookie_val if show_full else redact(session_cookie_val)
     cookie_header_display = cookie_header if show_full else redact(cookie_header, head=24, tail=12)
+    session_cookie_display = session_cookie_val if show_full else redact(session_cookie_val)
+
+    # show attributes and the rest of the session-safe fields (nameid, issuer, authn_context)
+    non_attr = {k: v for k, v in data.items() if k != "attributes"}
 
     body = (
         "<h2>Attributes</h2><pre>" + pretty_json(data.get("attributes", {})) + "</pre>"
-        "<h2>Session</h2><pre>" + pretty_json({k: v for k, v in data.items() if k != "attributes"}) + "</pre>"
+        "<h2>Session</h2><pre>" + pretty_json(non_attr) + "</pre>"
         "<hr/>"
         "<h3>Cookies (incoming request)</h3>"
         f"<p><b>Cookie header:</b></p><pre>{cookie_header_display}</pre>"
@@ -92,26 +141,64 @@ def user() -> ResponseReturnValue:
 
 @bp.get("/logout")
 def logout() -> ResponseReturnValue:
-    data = session.get("saml") or {}
-    nameid = data.get("nameid")
-    session_index = data.get("session_index")
-
-
-    auth = saml_auth()
-    slo_url = auth.logout(name_id=nameid, session_index=session_index, return_to="/")
-    return redirect(slo_url)
+    session.pop("saml_user", None)
+    return redirect("/", code=302)
 
 @bp.get("/metadata")
 def metadata() -> ResponseReturnValue:
-    settings_obj = saml_settings()
-    metadata = settings_obj.get_sp_metadata()
-    errors = settings_obj.validate_metadata(metadata)
-    if len(errors) > 0:
-        return page("SAML Metadata Error", f"<pre>{errors}</pre>")
+    try:
+        from saml2.metadata import create_metadata_string
+        txt = create_metadata_string(config=sp_config(), sign=None)
+    except Exception as e:
+        return page("SAML Metadata Error", f"<pre>{e}</pre>")
 
-
-    resp = make_response(metadata, 200)
-    resp.headers["Content-Type"] = "text/xml"
-    # Helpful for Entra XML import
+    resp = make_response(txt, 200)
+    resp.headers["Content-Type"] = "application/samlmetadata+xml"
     resp.headers["Content-Disposition"] = "attachment; filename=sp-metadata.xml"
     return resp
+
+@bp.get("/debug/config")
+def saml_debug_config():
+    import os
+    from .settings import sp_config  # our pysaml2 SPConfig builder
+
+    conf = sp_config()
+
+    # EntityID
+    try:
+        entityid = getattr(conf, "entityid", None) or conf.getattr("entityid", "")
+    except Exception:
+        entityid = ""
+
+    # ACS endpoints (list of (url, binding))
+    acs_urls = []
+    try:
+        endpoints = conf.getattr("endpoints", "sp") or {}
+        acs_pairs = endpoints.get("assertion_consumer_service", []) or []
+        for pair in acs_pairs:
+            if isinstance(pair, (list, tuple)) and pair:
+                acs_urls.append(str(pair[0]))
+            else:
+                acs_urls.append(str(pair))
+    except Exception:
+        pass
+
+    # IdP metadata URL we’re using (rebuild from env, since SPConfig doesn’t expose it)
+    md_url = os.getenv("SAML_IDP_METADATA_URL")
+    if not md_url:
+        # Rebuild the standard Entra federation metadata URL if we have tenant/app id
+        tenant = os.getenv("TENANT_ID", "")
+        appid  = os.getenv("SAML_APP_ID", "")
+        if tenant:
+            base_md = f"https://login.microsoftonline.com/{tenant}/federationmetadata/2007-06/federationmetadata.xml"
+            md_url = f"{base_md}?appid={appid}" if appid else base_md
+
+    body = (
+        "<h2>SAML SP Effective Config</h2>"
+        f"<p><b>EntityID:</b> {entityid}</p>"
+        f"<p><b>ACS endpoints:</b></p><pre>{pretty_json(acs_urls)}</pre>"
+        f"<p><b>IdP metadata URL:</b></p><pre>{pretty_json(md_url)}</pre>"
+        f"<p><b>BASE_URL:</b> {os.getenv('BASE_URL')}</p>"
+        f"<p><b>SAML_SP_ENTITY_ID:</b> {os.getenv('SAML_SP_ENTITY_ID')}</p>"
+    )
+    return page("SAML Debug Config", body)

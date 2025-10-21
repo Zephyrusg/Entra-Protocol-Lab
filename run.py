@@ -1,6 +1,16 @@
 from app import create_app
 from app.config import settings
 
+app = create_app() 
+
+@app.get("/__routes")
+def __routes():
+    lines = []
+    for rule in app.url_map.iter_rules():
+        methods = ",".join(sorted(rule.methods - {"HEAD","OPTIONS"}))
+        lines.append(f"{methods:7s} {rule.rule} -> {rule.endpoint}")
+    lines.sort()
+    return "<pre>" + "\n".join(lines) + "</pre>"
 
 if __name__ == "__main__":
-    create_app().run(host="0.0.0.0", port=settings.PORT, debug=False)
+     app.run(port=settings.PORT)

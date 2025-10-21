@@ -30,6 +30,8 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 2. **Install dependencies**
 
    ```bash
+   apt update
+   apt install -y xmlsec1 ca-certificates curl git
    # Using uv (recommended)
    uv sync
    ```
@@ -39,7 +41,7 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
    Copy the sample environment file and configure it for your setup:
 
    ```bash
-   cp .sampleEnv .env
+   
    ```
 
    Edit `.env` with your Entra ID configuration:

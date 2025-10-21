@@ -1,52 +1,44 @@
-# ---------- Builder ----------
-FROM python:3.14-slim AS builder
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+# syntax=docker/dockerfile:1
+ARG PYTHON_VERSION=3.14
+FROM python:${PYTHON_VERSION}-slim
 
-# Build toolchain + headers for lxml/xmlsec builds
+# ---- minimal OS deps ----
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl build-essential gcc pkg-config \
-    libxml2-dev libxslt1-dev zlib1g-dev \
-    libxmlsec1-dev libxmlsec1-openssl \
-    libffi-dev openssl \
-  && rm -rf /var/lib/apt/lists/*
+      xmlsec1 ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install uv (into /root/.local/bin)
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh -s --
-ENV PATH="/root/.local/bin:${PATH}"
+# ---- install uv ----
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh \ 
+ && /root/.local/bin/uv --version \
+ && ln -s /root/.local/bin/uv /usr/local/bin/uv 
+
+# Put the virtualenv in the project directory and on PATH
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+ENV PATH="/app/.venv/bin:${PATH}"
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PORT=3000 XMLSEC_BINARY=/usr/bin/xmlsec1
 
 WORKDIR /app
 
-# Copy only metadata first to maximize layer cache
-COPY pyproject.toml uv.lock ./
+# ---- dependency layer ----
+COPY pyproject.toml ./
+# COPY uv.lock ./        # (uncomment if you have a lockfile)
+RUN uv sync --no-dev
 
-# Create venv and install deps exactly as locked, targeting the active venv
-RUN uv venv /opt/venv \
- && . /opt/venv/bin/activate \
- && uv sync --frozen --active
-
-# ---------- Runtime ----------
-FROM python:3.14-slim AS runtime
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
-
-# Runtime libs only (no compilers/headers)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl \
-    libxml2 libxslt1.1 zlib1g \
-    libxmlsec1 libxmlsec1-openssl xmlsec1 \
-    openssl \
-  && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# Bring in the ready virtualenv from builder
-COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:${PATH}"
-
-# Now add your source code
+# ---- app layer ----
 COPY . .
+RUN uv sync --no-dev     # install the project itself into /app/.venv
 
-ENV PORT=3000
+# ---- non-root user (fixed) ----
+RUN groupadd -r appuser \
+ && useradd -r -g appuser -m appuser \
+ && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 3000
 
-# Dev-friendly gunicorn command (bumped timeout + threads)
-CMD ["gunicorn","-w","2","-t","120","-k","gthread","--threads","4","-b","0.0.0.0:3000","wsgi:app"]
+# If you prefer factory, use --factory run:create_app; otherwise use run:app
+CMD ["uv","run","gunicorn", \
+     "--bind","0.0.0.0:3000", \
+     "--workers","2","--threads","4","--timeout","60", \
+     "run:app"]
