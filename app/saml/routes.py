@@ -145,14 +145,28 @@ def logout() -> ResponseReturnValue:
     return redirect("/", code=302)
 
 @bp.get("/metadata")
-def metadata() -> ResponseReturnValue:
-    try:
-        from saml2.metadata import create_metadata_string
-        txt = create_metadata_string(config=sp_config(), sign=None)
-    except Exception as e:
-        return page("SAML Metadata Error", f"<pre>{e}</pre>")
+def metadata():
+    from saml2.metadata import create_metadata_string
+    from .settings import sp_config
 
-    resp = make_response(txt, 200)
+    conf = sp_config()
+
+    # Handle both pysaml2 signatures:
+    # - new: create_metadata_string(config=conf, sign=None, ...)
+    # - old: create_metadata_string(configfile, config=conf, sign=None, ...)
+    try:
+        xml = create_metadata_string(config=conf, sign=None)
+    except TypeError:
+        # Older signature needs configfile explicitly, even if None
+        xml = create_metadata_string(configfile=None, config=conf, sign=None)
+
+    # Normalize to bytes
+    if isinstance(xml, str):
+        xml_bytes = xml.encode("utf-8")
+    else:
+        xml_bytes = xml
+
+    resp = make_response(xml_bytes, 200)
     resp.headers["Content-Type"] = "application/samlmetadata+xml"
     resp.headers["Content-Disposition"] = "attachment; filename=sp-metadata.xml"
     return resp
