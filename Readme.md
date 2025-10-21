@@ -32,6 +32,10 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
    ```bash
    apt update
    apt install -y xmlsec1 ca-certificates curl git
+
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+      
+
    # Using uv (recommended)
    uv sync
    ```

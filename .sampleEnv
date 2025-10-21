@@ -10,5 +10,5 @@ OIDC_REDIRECT_URI="$BASE_URL/oidc/callback"
 # ---- SAML (Microsoft Entra Enterprise App) ----
 SAML_SP_ENTITY_ID="urn:entra-protocol-lab:sp"
 SAML_APP_ID=""
-export=XMLSEC_BINARY=/usr/bin/xmlsec1
-export SHOW_FULL_COOKIES=0
+XMLSEC_BINARY=/usr/bin/xmlsec1
+SHOW_FULL_COOKIES=0
