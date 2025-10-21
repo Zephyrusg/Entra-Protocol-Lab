@@ -12,5 +12,10 @@ def __routes():
     lines.sort()
     return "<pre>" + "\n".join(lines) + "</pre>"
 
+@app.get("/debug/session")
+def debug_session():
+    session["ping"] = session.get("ping", 0) + 1
+    return {"ping": session["ping"]}
+
 if __name__ == "__main__":
      app.run(port=settings.PORT)

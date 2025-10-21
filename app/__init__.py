@@ -43,9 +43,13 @@ def create_app() -> Flask:
 
     # Sessions: required flags for OIDC/SAML (ACS is a cross-site POST)
     app.config.update(
+        SECRET_KEY=os.getenv("SESSION_SECRET", "dev-change-me"),
         SESSION_TYPE="filesystem",
         SESSION_FILE_DIR="/tmp/flask-sessions",
-        SESSION_PERMANENT=False,
+        SESSION_PERMANENT=True,
+        PERMANENT_SESSION_LIFETIME=timedelta(hours=4),
+        SESSION_USE_SIGNER=True,
+        SESSION_COOKIE_NAME="session",
         SESSION_COOKIE_SECURE=not LOCAL_DEV,                      # False on localhost HTTP
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE=("Lax" if LOCAL_DEV else "None"), # Lax for dev, None for prod
@@ -91,6 +95,7 @@ def create_app() -> Flask:
             f"<p>Test <b>OIDC</b> and <b>SAML</b> against Entra.</p>"
             f"<ul><li>OIDC: <code>/oidc/login</code> → <code>/oidc/user</code></li>"
             f"<li>SAML: <code>/saml/login</code> → <code>/saml/user</code></li></ul>"
+            f"<p><b>BASE_URL:</b> {settings.BASE_URL}</p>"
             f"<p><b>BASE_URL:</b> {settings.BASE_URL}</p>"
         )
 
