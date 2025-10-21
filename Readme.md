@@ -47,19 +47,19 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
    Edit `.env` with your Entra ID configuration:
 
    ```bash
-   export PORT=3000
-   export BASE_URL="http://localhost:3000"
-   export SESSION_SECRET="your-secure-session-secret-here"
-   export TENANT_ID="your-tenant-id"
-   export OIDC_CLIENT_ID="your-oidc-client-id"
-   export OIDC_CLIENT_SECRET="your-oidc-client-secret"
-   export OIDC_REDIRECT_URI="$BASE_URL/oidc/callback"
+   PORT=3000
+   BASE_URL="http://localhost:3000"
+   SESSION_SECRET="your-secure-session-secret-here"
+   TENANT_ID="your-tenant-id"
+   OIDC_CLIENT_ID="your-oidc-client-id"
+   OIDC_CLIENT_SECRET="your-oidc-client-secret"
+   OIDC_REDIRECT_URI="$BASE_URL/oidc/callback"
    
    # SAML Configuration
-   export SAML_SP_ENTITY_ID="urn:entra-protocol-lab:sp"
-   export SAML_APP_ID="your-saml-app-id"
-   export XMLSEC_BINARY=/usr/bin/xmlsec1
-   export SHOW_FULL_COOKIES=1
+   SAML_SP_ENTITY_ID="urn:entra-protocol-lab:sp"
+   SAML_APP_ID="your-saml-app-id"
+   XMLSEC_BINARY=/usr/bin/xmlsec1
+   SHOW_FULL_COOKIES=1
    ```
 
 4. **Run the application**
@@ -148,33 +148,7 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 
 ## Docker Support
 
-For Docker deployment, create a `.env.local` file with your configuration:
-
-```bash
-# Create Docker environment file
-cp .sampleEnv .env.local
-```
-
-Edit `.env.local` with Docker-appropriate values (note the different format without `export`):
-
-```bash
-# App Configuration
-PORT=3000
-BASE_URL=http://localhost:3000
-SESSION_SECRET=your-secure-session-secret-here
-
-# OIDC (Entra ID App Registration)
-TENANT_ID=your-tenant-id
-OIDC_CLIENT_ID=your-oidc-client-id
-OIDC_CLIENT_SECRET=your-oidc-client-secret
-OIDC_REDIRECT_URI=http://localhost:3000/oidc/callback
-
-# SAML (Entra Enterprise Application)
-SAML_SP_ENTITY_ID=urn:entra-protocol-lab:sp
-SAML_APP_ID=your-saml-app-id
-XMLSEC_BINARY=/usr/bin/xmlsec1
-SHOW_FULL_COOKIES=1
-```
+The application uses the same `.env` file for both local development and Docker deployment.
 
 Build and run with Docker:
 
@@ -183,10 +157,8 @@ Build and run with Docker:
 docker build -t entra-protocol-lab .
 
 # Run with environment file
-docker run -p 3000:3000 --env-file .env.local entra-protocol-lab
+docker run -p 3000:3000 --env-file .env entra-protocol-lab
 ```
-
-> **Note**: `.env.local` is gitignored and used specifically for Docker deployments, while `.env` (from `.sampleEnv`) is used for local development.
 
 ## Development
 
@@ -208,8 +180,7 @@ entra-protocol-lab/
 │       ├── crypto.py        # PKCE helpers
 │       └── html.py          # HTML templates
 ├── .sampleEnv              # Environment template
-├── .env                    # Local environment (create from .sampleEnv)
-├── .env.local             # Docker environment (create for Docker)
+├── .env                    # Environment configuration (create from .sampleEnv)
 ├── run.py                 # Development server
 └── wsgi.py               # Production WSGI entry point
 ```
@@ -219,7 +190,7 @@ entra-protocol-lab/
 ### Common Issues
 
 1. **SAML Signature Issues**: Check `XMLSEC_BINARY` path
-2. **Redirect URI Mismatch**: Ensure URLs match between Entra and your environment file (`.env` or `.env.local`)
+2. **Redirect URI Mismatch**: Ensure URLs match between Entra and your `.env` file
 3. **Session Issues**: Generate a strong `SESSION_SECRET`
 
 ### Debug Mode
