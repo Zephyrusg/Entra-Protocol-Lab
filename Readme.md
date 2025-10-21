@@ -181,8 +181,7 @@ entra-protocol-lab/
 │   │   └── routes.py        # OIDC endpoints
 │   ├── saml/                # SAML implementation
 │   │   ├── routes.py        # SAML endpoints
-│   │   ├── settings.py      # SAML configuration
-│   │   └── types.py         # Type definitions
+│   │   └── settings.py      # SAML configuration
 │   └── utils/               # Shared utilities
 │       ├── crypto.py        # PKCE helpers
 │       └── html.py          # HTML templates
@@ -196,9 +195,8 @@ entra-protocol-lab/
 
 ### Common Issues
 
-1. **SAML Signature Issues**: Check `XMLSEC_BINARY` path
-2. **Redirect URI Mismatch**: Ensure URLs match between Entra and your `.env` file
-3. **Session Issues**: Generate a strong `SESSION_SECRET`
+1. **Redirect URI Mismatch**: Ensure URLs match between Entra and your `.env` file
+2. **Session Issues**: Generate a strong `SESSION_SECRET`
 
 ### Debug Mode
 
