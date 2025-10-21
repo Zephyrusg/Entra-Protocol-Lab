@@ -1,14 +1,16 @@
-PORT=3000
+#iF RUNING ON LOCALHOST, REMOVE PORT (3000) and OIDC_REDIRECT_URI ({Base_URL}/oidc/callback) will be set automatically
+
+
+#PORT=3000
 BASE_URL="http://localhost:3000"
 SESSION_SECRET="dev-change-me"
 TENANT_ID=""
 #--- OIDC (Azure AD App Registration) ----
 OIDC_CLIENT_ID=""
 OIDC_CLIENT_SECRET=""
-OIDC_REDIRECT_URI="$BASE_URL/oidc/callback"
+#OIDC_REDIRECT_URI="$BASE_URL/oidc/callback"
 
 # ---- SAML (Microsoft Entra Enterprise App) ----
 SAML_SP_ENTITY_ID="urn:entra-protocol-lab:sp"
 SAML_APP_ID=""
-XMLSEC_BINARY=/usr/bin/xmlsec1
 SHOW_FULL_COOKIES=0

@@ -45,26 +45,29 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
    Copy the sample environment file and configure it for your setup:
 
    ```bash
-   
+   cp .sampleEnv .env
    ```
 
    Edit `.env` with your Entra ID configuration:
 
    ```bash
+   # OIDC_REDIRECT_URI is automatically set to BASE_URL + /oidc/callback
+   # PORT is mainly for Docker container port exposure
+   
    PORT=3000
    BASE_URL="http://localhost:3000"
    SESSION_SECRET="your-secure-session-secret-here"
    TENANT_ID="your-tenant-id"
    OIDC_CLIENT_ID="your-oidc-client-id"
    OIDC_CLIENT_SECRET="your-oidc-client-secret"
-   OIDC_REDIRECT_URI="$BASE_URL/oidc/callback"
    
    # SAML Configuration
    SAML_SP_ENTITY_ID="urn:entra-protocol-lab:sp"
    SAML_APP_ID="your-saml-app-id"
-   XMLSEC_BINARY=/usr/bin/xmlsec1
    SHOW_FULL_COOKIES=1
    ```
+
+   **Note:** `OIDC_REDIRECT_URI` is automatically constructed as `BASE_URL + /oidc/callback` and doesn't need to be set manually.
 
 4. **Run the application**
 
@@ -104,17 +107,19 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `PORT` | Application port | Yes |
+| `PORT` | Container port exposure (mainly for Docker) | No |
 | `BASE_URL` | Public base URL of your app | Yes |
 | `SESSION_SECRET` | Secret for session encryption | Yes |
 | `TENANT_ID` | Microsoft Entra tenant ID | Yes |
 | `OIDC_CLIENT_ID` | OIDC application client ID | Yes |
 | `OIDC_CLIENT_SECRET` | OIDC application client secret | Yes |
-| `OIDC_REDIRECT_URI` | OIDC callback URL | Yes |
+| `OIDC_REDIRECT_URI` | Auto-set to BASE_URL + /oidc/callback | No* |
 | `SAML_SP_ENTITY_ID` | SAML Service Provider entity ID | Yes |
 | `SAML_APP_ID` | SAML Enterprise Application ID | Yes |
 | `XMLSEC_BINARY` | Path to xmlsec1 binary | No |
 | `SHOW_FULL_COOKIES` | Show full cookie values in debug | No |
+
+*\* Automatically constructed from BASE_URL - do not set manually*
 
 ## Usage
 
