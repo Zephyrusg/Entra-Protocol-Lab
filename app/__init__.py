@@ -135,6 +135,7 @@ def create_app() -> Flask:
   <summary>Tools — Health</summary>
   <ul>
     <li><a href="/tools/health/oidc">/tools/health/oidc</a></li>
+    <li><a href="/tools/health/oidc/ui">/tools/health/oidc/ui</a></li>
     <li><a href="/tools/health/saml">/tools/health/saml</a></li>
     <li><a href="/tools/health/saml/ui">/tools/health/saml/ui</a></li>
   </ul>
