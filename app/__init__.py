@@ -8,7 +8,10 @@ from .config import settings
 from .oidc.client import init_oauth
 from .oidc.routes import bp as oidc_bp
 from .saml.routes import bp as saml_bp
+from .tools.jwt import bp as jwt_tools_bp
+from .tools.health import bp as health_tools_bp
 from datetime import timedelta
+from .utils.html import page
 
 def is_local_dev():
     env = str(getattr(settings, "ENV", os.getenv("FLASK_ENV", ""))).lower()
@@ -64,6 +67,9 @@ def create_app() -> Flask:
     init_oauth(app)
     app.register_blueprint(oidc_bp, url_prefix="/oidc")
     app.register_blueprint(saml_bp, url_prefix="/saml")
+    app.register_blueprint(jwt_tools_bp, url_prefix="/tools/jwt") # /tools/jwt/...
+    app.register_blueprint(health_tools_bp, url_prefix="/tools/health")
+
 
     # Security headers on every response
     @app.after_request
@@ -91,13 +97,59 @@ def create_app() -> Flask:
     from .utils.html import page
     @app.get("/")
     def index():
-        return page(
-            "Entra Protocol Lab (Python)",
-            f"<p>Test <b>OIDC</b> and <b>SAML</b> against Entra.</p>"
-            f"<ul><li>OIDC: <code>/oidc/login</code> → <code>/oidc/user</code></li>"
-            f"<li>SAML: <code>/saml/login</code> → <code>/saml/user</code></li></ul>"
-            f"<p><b>BASE_URL:</b> {settings.BASE_URL}</p>"
-        )
+        html = f"""
+<p>Test <b>OIDC</b> and <b>SAML</b> against Entra.</p>
+
+<details>
+  <summary>OIDC</summary>
+  <ul>
+    <li><a href="/oidc/login">/oidc/login</a></li>
+    <li><a href="/oidc/user">/oidc/user</a></li>
+    <li><a href="/oidc/logout">/oidc/logout</a></li>
+    <li><a href="/oidc/ui/logout">/oidc/ui/logout</a></li>
+    <li><a href="/oidc/logout-url">/oidc/logout-url</a></li>
+  </ul>
+</details>
+
+<details>
+  <summary>SAML</summary>
+  <ul>
+    <li><a href="/saml/login">/saml/login</a></li>
+    <li><a href="/saml/user">/saml/user</a></li>
+    <li><a href="/saml/logout">/saml/logout</a></li>
+    <li><a href="/saml/logout-url">/saml/logout-url</a></li>
+    <li><a href="/saml/metadata">/saml/metadata</a></li>
+  </ul>
+</details>
+
+<details>
+  <summary>Tools — JWT</summary>
+  <ul>
+    <li><a href="/tools/jwt/ui">/tools/jwt/ui</a></li>
+    <!-- POST endpoint, shown for reference only:
+         /tools/jwt/validate -->
+  </ul>
+</details>
+
+<details>
+  <summary>Tools — Health</summary>
+  <ul>
+    <li><a href="/tools/health/oidc">/tools/health/oidc</a></li>
+    <li><a href="/tools/health/saml">/tools/health/saml</a></li>
+    <li><a href="/tools/health/saml/ui">/tools/health/saml/ui</a></li>
+  </ul>
+</details>
+
+<p><b>BASE_URL:</b> {settings.BASE_URL}</p>
+
+<style>
+  details {{ margin: 8px 0; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; }}
+  summary {{ cursor: pointer; font-weight: 600; }}
+  ul {{ margin: 8px 0 0 16px; }}
+  a {{ text-decoration: none; }}
+</style>
+"""
+        return page("Entra Protocol Lab (Python)", html, show_nav=False)
 
 
 

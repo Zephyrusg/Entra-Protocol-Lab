@@ -5,6 +5,7 @@ from .client import get_client
 from ..utils.crypto import pkce_challenge
 from ..utils.html import page, pretty_json, redact
 from ..config import settings
+from urllib.parse import urlencode
 
 bp = Blueprint("oidc", __name__)
 
@@ -75,3 +76,33 @@ def logout() -> ResponseReturnValue:
         f"?post_logout_redirect_uri={settings.BASE_URL}"
     )
     return redirect(end_session)
+
+@bp.get("/logout-url")
+def logout_url() -> ResponseReturnValue:
+    # Allow override; default to tenant authority
+    authority = request.args.get("authority") or f"https://login.microsoftonline.com/{settings.TENANT_ID}/v2.0"
+    discovery = f"{authority.rstrip('/')}/.well-known/openid-configuration"
+
+    # Try discovery; fall back to static endpoint if missing
+    try:
+        r = requests.get(discovery, timeout=6); r.raise_for_status()
+        end_session = r.json().get("end_session_endpoint")
+    except Exception:
+        end_session = None
+    if not end_session:
+        end_session = f"https://login.microsoftonline.com/{settings.TENANT_ID}/oauth2/v2.0/logout"
+
+    plru = request.args.get("post_logout_redirect_uri") or settings.BASE_URL
+    id_token_hint = request.args.get("id_token_hint")
+    q = {"post_logout_redirect_uri": plru}
+    if id_token_hint:
+        q["id_token_hint"] = id_token_hint
+    url = f"{end_session}?{urlencode(q)}"
+
+    # Optional immediate redirect
+    if str(request.args.get("redirect", "")).lower() in ("1", "true", "yes"):
+        return redirect(url)
+
+    body = "<h2>OIDC Logout URL</h2><pre>" + url + "</pre>"
+    return page("OIDC Logout URL", body)
+

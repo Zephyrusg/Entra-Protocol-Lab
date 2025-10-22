@@ -1,23 +1,24 @@
-def page(title: str, body_html: str) -> str:
+DEFAULT_LINKS = [
+    ("Home", "/"),
+    ("OIDC Login", "/oidc/login"),
+    ("OIDC User", "/oidc/user"),
+    ("SAML Login", "/saml/login"),
+    ("SAML User", "/saml/user"),
+    ("SAML Metadata", "/saml/metadata"),
+]
+
+def page(title: str, body: str, *, show_nav: bool = True, links=DEFAULT_LINKS) -> str:
+    nav_html = ""
+    if show_nav and links:
+        nav_html = " | ".join(f"<a href='{href}'>{text}</a>" for text, href in links)
+        nav_html = f"<nav id='top-nav'>{nav_html}</nav><hr/>"
     return f"""<!doctype html>
-<html><head><meta charset="utf-8"><title>{title}</title>
-<style>
-body{{font-family:system-ui,Segoe UI,Arial;margin:2rem;max-width:980px}}
-pre{{background:#111;color:#eee;padding:1rem;border-radius:8px;overflow:auto}}
-a,button{{font-size:1rem}}
-code{{background:#f2f2f2;padding:.1rem .3rem;border-radius:.25rem}}
-</style></head>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title}</title></head>
 <body>
 <h1>{title}</h1>
-<nav>
-  <a href="/">Home</a> |
-  <a href="/oidc/login">OIDC Login</a> |
-  <a href="/oidc/user">OIDC User</a> |
-  <a href="/saml/login">SAML Login</a> |
-  <a href="/saml/user">SAML User</a> |
-  <a href="/saml/metadata">SAML Metadata</a>
-</nav><hr/>
-{body_html}
+{nav_html}
+{body}
 </body></html>"""
 
 def pretty_json(obj) -> str:

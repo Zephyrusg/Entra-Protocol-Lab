@@ -11,25 +11,6 @@ from saml2 import BINDING_HTTP_POST
 from ..config import settings
 
 
-def _req_env(name: str) -> str:
-    """Read a required setting from config/env; raise if missing/blank."""
-    # Prefer your app config object (settings), else fall back to env
-    val = getattr(settings, name, None) or os.getenv(name)
-    if not val or str(val).strip() == "":
-        raise RuntimeError(f"{name} is required but not set")
-    return str(val).strip()
-
-
-def _federation_metadata_url(tenant_id: str, app_id: str) -> str:
-    """
-    Build Entra's 'App Federation Metadata Url' from tenant and Enterprise App ID.
-    Example:
-      https://login.microsoftonline.com/<tenant>/federationmetadata/2007-06/federationmetadata.xml?appid=<appId>
-    """
-    base = f"https://login.microsoftonline.com/{tenant_id}/federationmetadata/2007-06/federationmetadata.xml"
-    return f"{base}?appid={app_id}"
-
-
 def sp_config() -> SPConfig:
     """
     Build a pysaml2 SPConfig that:
@@ -41,9 +22,7 @@ def sp_config() -> SPConfig:
     base_url = settings.BASE_URL.rstrip("/")
     entity_id = settings.SAML_SP_ENTITY_ID  # e.g., "urn:entra-protocol-lab:sp"
 
-    tenant_id = _req_env("TENANT_ID")
-    app_id    = _req_env("SAML_APP_ID")
-    md_url    = _federation_metadata_url(tenant_id, app_id)
+    md_url     = settings.SAML_IDP_METADATA_URL
 
     conf: dict = {
         "entityid": entity_id,
