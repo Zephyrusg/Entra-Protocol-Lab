@@ -144,14 +144,27 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 - `/oidc/callback` - OIDC callback endpoint
 - `/oidc/user` - View OIDC user info and tokens
 - `/oidc/logout` - OIDC logout
+- `/oidc/ui/logout` - OIDC logout with UI
+- `/oidc/logout-url` - Get OIDC logout URL
 
 #### SAML Endpoints
 - `/saml/login` - Initiate SAML login
 - `/saml/acs` - SAML Assertion Consumer Service
 - `/saml/user` - View SAML user info and assertions
-- `/saml/metadata` - SAML SP metadata
 - `/saml/logout` - SAML logout
+- `/saml/logout-url` - Get SAML logout URL
+- `/saml/metadata` - SAML SP metadata
 - `/saml/debug/config` - Display SAML configuration details
+
+#### Tools - JWT
+- `/tools/jwt/ui` - JWT token validation and inspection tool
+- `/tools/jwt/validate` - POST endpoint for JWT validation
+
+#### Tools - Health Checks
+- `/tools/health/oidc` - OIDC health check
+- `/tools/health/oidc/ui` - OIDC health check with UI
+- `/tools/health/saml` - SAML health check
+- `/tools/health/saml/ui` - SAML health check with UI
 
 ## Docker Support
 
