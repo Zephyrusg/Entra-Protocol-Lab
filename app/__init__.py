@@ -74,8 +74,21 @@ def create_app() -> Flask:
     # Security headers on every response
     @app.after_request
     def set_security_headers(resp):
+
         # Start with Report-Only while testing if you prefer:
         # resp.headers["Content-Security-Policy-Report-Only"] = CSP
+
+        CSP = (
+            "default-src 'self'; "
+            "base-uri 'self'; "
+            "object-src 'none'; "
+            "frame-ancestors 'self'; "
+            "form-action 'self'; "
+            "connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com; "
+            "img-src 'self' data: https:; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'"
+        )
         resp.headers["Content-Security-Policy"] = CSP
         resp.headers["X-Frame-Options"] = "SAMEORIGIN"
         resp.headers["X-Content-Type-Options"] = "nosniff"
@@ -88,7 +101,7 @@ def create_app() -> Flask:
         xf_proto = request.headers.get("X-Forwarded-Proto", "http")
 
         # HSTS only when original request was HTTPS and host is your custom domain
-        
+
         if not LOCAL_DEV and xf_proto == "https" and xf_host == _BASE_HOST:
             resp.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return resp

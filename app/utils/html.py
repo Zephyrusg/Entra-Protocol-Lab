@@ -14,6 +14,7 @@ def page(title: str, body: str, *, show_nav: bool = True, links=DEFAULT_LINKS) -
         nav_html = f"<nav id='top-nav'>{nav_html}</nav><hr/>"
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/static/css/app.css">
 <title>{title}</title></head>
 <body>
 <h1>{title}</h1>

@@ -161,12 +161,12 @@ def user() -> ResponseReturnValue:
     non_attr = {k: v for k, v in data.items() if k != "attributes"}
 
     body = (
-        "<h2>Attributes</h2><pre>" + pretty_json(data.get("attributes", {})) + "</pre>"
-        "<h2>Session</h2><pre>" + pretty_json(non_attr) + "</pre>"
+        "<h2>Attributes</h2><pre class='code wrap'>" + pretty_json(data.get("attributes", {})) + "</pre>"
+        "<h2>Session</h2><pre class='code wrap'>" + pretty_json(non_attr) + "</pre>"
         "<hr/>"
         "<h3>Cookies (incoming request)</h3>"
-        f"<p><b>Cookie header:</b></p><pre>{cookie_header_display}</pre>"
-        f"<p><b>Session cookie</b> (<code>{cookie_name}</code>):</p><pre>{session_cookie_display}</pre>"
+        f"<p><b>Cookie header:</b></p><pre class='code wrap'>" + cookie_header_display + "</pre>"
+        f"<p><b>Session cookie</b> (<code>{cookie_name}</code>):</p><pre class='code wrap'>" + session_cookie_display + "</pre>"
     )
 
     if not show_full:
@@ -238,7 +238,7 @@ def saml_debug_config():
 
     # IdP metadata URL we’re using (rebuild from env, since SPConfig doesn’t expose it)
     md_url = settings.SAML_IDP_METADATA_URL
-   
+
     body = (
         "<h2>SAML SP Effective Config</h2>"
         f"<p><b>EntityID:</b> {entityid}</p>"

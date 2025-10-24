@@ -1,0 +1,18 @@
+:root { --code-bg:#111827; --code-fg:#e5e7eb; }
+
+pre.code {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border-radius: 12px;
+  padding: 12px;
+  overflow: auto;                 /* scroll if too wide */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+               "Liberation Mono", "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* For long tokens/cookies, wrap instead of horizontal scroll */
+pre.code.wrap { white-space: pre-wrap; word-break: break-word; }
+
+hr { border: 0; border-top: 1px solid #e5e7eb; }

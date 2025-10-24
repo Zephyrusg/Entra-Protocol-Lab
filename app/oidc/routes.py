@@ -48,7 +48,7 @@ def user() -> ResponseReturnValue:
     # Show full access_token only if requested
     show_full = (
         str(request.args.get("showtoken", "")).lower() in ("1", "true", "yes")
-        or str(os.getenv("SHOW_FULL_TOKENS", "")).lower() in ("1", "true", "yes")
+        or str(os.getenv("SHOW_FULL_COOKIES", "")).lower() in ("1", "true", "yes")
     )
 
     raw_token = data.get("token", {}) or {}
@@ -56,8 +56,10 @@ def user() -> ResponseReturnValue:
     if not show_full and "access_token" in token_for_display and token_for_display["access_token"]:
         token_for_display["access_token"] = redact(token_for_display["access_token"], head=8, tail=8, mask_char="*")
 
-    body = "<h2>ID Token Claims</h2><pre>" + pretty_json(data["claims"]) + "</pre>"
-    body += "<h2>Token Set</h2><pre>" + pretty_json(token_for_display) + "</pre>"
+    body = (
+    "<h2>ID Token Claims</h2><pre class='code'>" + pretty_json(data["claims"]) + "</pre>"
+    "<h2>Token Set</h2><pre class='code'>" + pretty_json(token_for_display) + "</pre>"
+    )
 
     if not show_full and "access_token" in raw_token:
         body += (

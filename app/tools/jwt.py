@@ -145,7 +145,7 @@ def jwt_validate_route():
 
 @bp.get("/ui")
 def ui_jwt():
-    html = r"""
+    html = """
 <!doctype html><meta charset='utf-8'/><meta name='viewport' content='width=device-width, initial-scale=1'/>
 <title>JWT Validator • Entra Test App</title>
 <style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:24px}.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}textarea,input{width:100%}textarea{height:180px}pre{background:#1118270d;padding:12px;border-radius:8px;overflow:auto}.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;margin-right:6px}.ok{background:#d1fae5}.warn{background:#fef3c7}.fail{background:#fee2e2}.card{border:1px solid #e5e7eb;border-radius:12px;padding:16px}button{padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#111827;color:#fff;cursor:pointer}</style>
@@ -158,14 +158,6 @@ def ui_jwt():
 </div><div class='card'>
   <div id='status'></div><h3>Header</h3><pre id='hdr'></pre><h3>Claims</h3><pre id='claims'></pre><h3>Full Result</h3><pre id='raw'></pre>
 </div></div>
-<script>
-const $=id=>document.getElementById(id);function badge(t,c){return `<span class=\"badge ${c}\">${t}</span>`}
-$("btn").onclick=async()=>{const body={token:$("token").value.trim(),authority:$("authority").value.trim()||undefined,expected_aud:$("aud").value.trim()||undefined};
- const res=await fetch('/tools/jwt/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
- const data=await res.json();const bad=x=>x?'ok':'fail';const warn=a=>(a&&a.length)?'warn':'ok';
- $("status").innerHTML=[badge(`sig:${data.sig_ok}`,bad(data.sig_ok)),badge(`iss:${data.iss_ok}`,bad(data.iss_ok)),badge(`aud:${data.aud_ok}`,bad(data.aud_ok)),badge(`exp:${data.exp_ok}`,bad(data.exp_ok)),badge(`nbf:${data.nbf_ok}`,bad(data.nbf_ok)),badge(`warn:${(data.warnings||[]).length}`,warn(data.warnings))].join(' ');
- $("hdr").textContent=JSON.stringify(data.header,null,2);$("claims").textContent=JSON.stringify(data.claims,null,2);$("raw").textContent=JSON.stringify(data,null,2);
-}
-</script>
+<script src="{{ url_for('static', filename='js/jwt-ui.js') }}"></script>
 """
     return render_template_string(html)
