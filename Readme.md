@@ -34,7 +34,7 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
    apt install -y xmlsec1 ca-certificates curl git
 
    curl -LsSf https://astral.sh/uv/install.sh | sh
-      
+   Restart Terminal Session to load UV
 
    # Using uv (recommended)
    uv sync
@@ -53,14 +53,14 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
    ```bash
    # OIDC_REDIRECT_URI is automatically set to BASE_URL + /oidc/callback
    # PORT is mainly for Docker container port exposure
-   
+
    PORT=3000
    BASE_URL="http://localhost:3000"
    SESSION_SECRET="your-secure-session-secret-here"
    TENANT_ID="your-tenant-id"
    OIDC_CLIENT_ID="your-oidc-client-id"
    OIDC_CLIENT_SECRET="your-oidc-client-secret"
-   
+
    # SAML Configuration
    SAML_SP_ENTITY_ID="urn:entra-protocol-lab:sp"
    SAML_APP_ID="your-saml-app-id"
@@ -190,14 +190,29 @@ entra-protocol-lab/
 │   ├── __init__.py          # Flask app factory
 │   ├── config.py            # Configuration management
 │   ├── oidc/                # OIDC implementation
+│   │   ├── __init__.py      # OIDC module initialization
 │   │   ├── client.py        # OAuth client setup
 │   │   └── routes.py        # OIDC endpoints
 │   ├── saml/                # SAML implementation
+│   │   ├── __init__.py      # SAML module initialization
 │   │   ├── routes.py        # SAML endpoints
 │   │   └── settings.py      # SAML configuration
+│   ├── static/              # Static web assets
+│   │   ├── css/
+│   │   │   └── app.css      # Application styles
+│   │   └── js/
+│   │       └── jwt-ui.js    # JWT UI JavaScript
+│   ├── tools/               # Utility tools
+│   │   ├── __init__.py      # Tools module initialization
+│   │   ├── health.py        # Health check endpoints
+│   │   └── jwt.py           # JWT validation tools
 │   └── utils/               # Shared utilities
+│       ├── __init__.py      # Utils module initialization
 │       ├── crypto.py        # PKCE helpers
 │       └── html.py          # HTML templates
+├── Dockerfile              # Docker container configuration
+├── pyproject.toml          # Python project configuration
+├── Readme.md               # Project documentation
 ├── .sampleEnv              # Environment template
 ├── .env                    # Environment configuration (create from .sampleEnv)
 ├── run.py                 # Development server
