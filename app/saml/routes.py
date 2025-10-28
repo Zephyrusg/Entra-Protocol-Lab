@@ -92,6 +92,65 @@ def _safe_authn_context(authn) -> list | str | None:
         return norm
     return "" if info is None else str(info)
 
+def _extract_assertion_details(authn) -> dict:
+    """Extract additional assertion details like audience, conditions, etc."""
+    details = {}
+    
+    try:
+        # Get the assertion object
+        assertion = getattr(authn, 'assertion', None)
+        if assertion:
+            # Extract audience restriction
+            if hasattr(assertion, 'conditions') and assertion.conditions:
+                conditions = assertion.conditions
+                details['conditions'] = {
+                    'not_before': getattr(conditions, 'not_before', None),
+                    'not_on_or_after': getattr(conditions, 'not_on_or_after', None)
+                }
+                
+                # Audience restriction
+                if hasattr(conditions, 'audience_restriction') and conditions.audience_restriction:
+                    audiences = []
+                    for restriction in conditions.audience_restriction:
+                        if hasattr(restriction, 'audience'):
+                            for aud in restriction.audience:
+                                audiences.append(getattr(aud, 'text', str(aud)))
+                    details['audience'] = audiences
+            
+            # Extract assertion ID and issue instant
+            details['assertion_id'] = getattr(assertion, 'id', None)
+            details['issue_instant'] = getattr(assertion, 'issue_instant', None)
+            
+            # Extract authentication statement details
+            if hasattr(assertion, 'authn_statement') and assertion.authn_statement:
+                auth_stmt = assertion.authn_statement[0] if isinstance(assertion.authn_statement, list) else assertion.authn_statement
+                details['authn_instant'] = getattr(auth_stmt, 'authn_instant', None)
+                details['session_index'] = getattr(auth_stmt, 'session_index', None)
+                
+                # Authentication context
+                if hasattr(auth_stmt, 'authn_context') and auth_stmt.authn_context:
+                    authn_ctx = auth_stmt.authn_context
+                    if hasattr(authn_ctx, 'authn_context_class_ref'):
+                        details['authn_context_class'] = getattr(authn_ctx.authn_context_class_ref, 'text', None)
+            
+            # Extract subject confirmation method
+            if hasattr(assertion, 'subject') and assertion.subject:
+                subject = assertion.subject
+                if hasattr(subject, 'subject_confirmation') and subject.subject_confirmation:
+                    confirmations = []
+                    for conf in subject.subject_confirmation:
+                        confirmations.append(getattr(conf, 'method', None))
+                    details['subject_confirmation_methods'] = confirmations
+                
+                # NameID format
+                if hasattr(subject, 'name_id') and subject.name_id:
+                    details['nameid_format'] = getattr(subject.name_id, 'format', None)
+    
+    except Exception as e:
+        details['extraction_error'] = str(e)
+    
+    return details
+
 
 @bp.get("/login")
 def login() -> ResponseReturnValue:
@@ -133,6 +192,7 @@ def acs():
         "attributes": _jsonable_attrs(ident),
         "issuer": _safe_issuer(authn),
         "authn_context": _safe_authn_context(authn),
+        "assertion_details": _extract_assertion_details(authn),
     }
     return redirect("/saml/user", code=302)
 
@@ -158,11 +218,13 @@ def user() -> ResponseReturnValue:
     session_cookie_display = session_cookie_val if show_full else redact(session_cookie_val)
 
     # show attributes and the rest of the session-safe fields (nameid, issuer, authn_context)
-    non_attr = {k: v for k, v in data.items() if k != "attributes"}
+    assertion_details = data.get("assertion_details", {})
+    non_attr = {k: v for k, v in data.items() if k not in ("attributes", "assertion_details")}
 
     body = (
-        "<h2>Attributes</h2><pre class='code wrap'>" + pretty_json(data.get("attributes", {})) + "</pre>"
-        "<h2>Session</h2><pre class='code wrap'>" + pretty_json(non_attr) + "</pre>"
+        "<h2>User Attributes</h2><pre class='code wrap'>" + pretty_json(data.get("attributes", {})) + "</pre>"
+        "<h2>SAML Assertion Details</h2><pre class='code wrap'>" + pretty_json(assertion_details) + "</pre>"
+        "<h2>Session Data</h2><pre class='code wrap'>" + pretty_json(non_attr) + "</pre>"
         "<hr/>"
         "<h3>Cookies (incoming request)</h3>"
         f"<p><b>Cookie header:</b></p><pre class='code wrap'>" + cookie_header_display + "</pre>"
