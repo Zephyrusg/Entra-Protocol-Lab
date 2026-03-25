@@ -1,18 +1,125 @@
-:root { --code-bg:#111827; --code-fg:#e5e7eb; }
+/* ── Light (default) ── */
+:root {
+  --bg: #ffffff;
+  --fg: #111827;
+  --bg-secondary: #f9fafb;
+  --border: #e5e7eb;
+  --border-light: #f3f4f6;
+  --muted: #6b7280;
+  --link: #2563eb;
+  --code-bg: #111827;
+  --code-fg: #e5e7eb;
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --btn-bg: #111827;
+  --btn-fg: #ffffff;
+  --btn-hover: #374151;
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-fg: #111827;
+  --btn-secondary-border: #d1d5db;
+  --btn-secondary-hover: #f3f4f6;
+  --hr: #e5e7eb;
+  --nav-bg: transparent;
+  --badge-pass-bg: #d1fae5;
+  --badge-pass-fg: #065f46;
+  --badge-fail-bg: #fee2e2;
+  --badge-fail-fg: #991b1b;
+  --badge-warn-bg: #fef3c7;
+  --badge-warn-fg: #92400e;
+  --guidance-bg: #eff6ff;
+  --guidance-border: #3b82f6;
+  --guidance-fg: #1e40af;
+  --tag-bg: #f3f4f6;
+  --tag-border: #d1d5db;
+  --empty-bg: #fef3c7;
+  --empty-fg: #92400e;
+}
 
+/* ── Dark ── */
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --fg: #e2e8f0;
+  --bg-secondary: #1e293b;
+  --border: #334155;
+  --border-light: #1e293b;
+  --muted: #94a3b8;
+  --link: #60a5fa;
+  --code-bg: #1e293b;
+  --code-fg: #e2e8f0;
+  --card-bg: #1e293b;
+  --input-bg: #0f172a;
+  --input-border: #475569;
+  --btn-bg: #e2e8f0;
+  --btn-fg: #0f172a;
+  --btn-hover: #cbd5e1;
+  --btn-secondary-bg: #1e293b;
+  --btn-secondary-fg: #e2e8f0;
+  --btn-secondary-border: #475569;
+  --btn-secondary-hover: #334155;
+  --hr: #334155;
+  --nav-bg: transparent;
+  --badge-pass-bg: #064e3b;
+  --badge-pass-fg: #6ee7b7;
+  --badge-fail-bg: #7f1d1d;
+  --badge-fail-fg: #fca5a5;
+  --badge-warn-bg: #78350f;
+  --badge-warn-fg: #fde68a;
+  --guidance-bg: #1e3a5f;
+  --guidance-border: #3b82f6;
+  --guidance-fg: #93c5fd;
+  --tag-bg: #334155;
+  --tag-border: #475569;
+  --empty-bg: #78350f;
+  --empty-fg: #fde68a;
+}
+
+/* ── Base ── */
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  transition: background 0.2s, color 0.2s;
+}
+
+a { color: var(--link); }
+a:visited { color: var(--link); }
+
+hr { border: 0; border-top: 1px solid var(--hr); }
+
+/* ── Code blocks ── */
 pre.code {
   background: var(--code-bg);
   color: var(--code-fg);
   border-radius: 12px;
   padding: 12px;
-  overflow: auto;                 /* scroll if too wide */
+  overflow: auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
                "Liberation Mono", "Courier New", monospace;
   font-size: 14px;
   line-height: 1.4;
 }
 
-/* For long tokens/cookies, wrap instead of horizontal scroll */
 pre.code.wrap { white-space: pre-wrap; word-break: break-word; }
 
-hr { border: 0; border-top: 1px solid #e5e7eb; }
+/* ── Empty value highlight ── */
+.empty-val {
+  background: var(--empty-bg);
+  color: var(--empty-fg);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* ── Dark mode toggle ── */
+.theme-toggle {
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-fg);
+  border: 1px solid var(--btn-secondary-border);
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.theme-toggle:hover { background: var(--btn-secondary-hover); }

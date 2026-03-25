@@ -266,16 +266,15 @@ def health_oidc_ui():
 </table>
 
 <style>
-  :root {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }}
-  .badge {{ display:inline-block; padding:2px 10px; border-radius:999px; background:#eee; }}
-  .ok {{ background:#d1fae5; }} .warn {{ background:#fef3c7; }} .fail {{ background:#fee2e2; }}
+  .badge {{ display:inline-block; padding:2px 10px; border-radius:999px; }}
+  .ok {{ background:var(--badge-pass-bg); color:var(--badge-pass-fg); }} .warn {{ background:var(--badge-warn-bg); color:var(--badge-warn-fg); }} .fail {{ background:var(--badge-fail-bg); color:var(--badge-fail-fg); }}
   .gridwrap {{ display:grid; grid-template-columns: 2fr 1fr; gap:16px; }}
   table.kv td, table.kv th {{ padding:6px 8px; vertical-align:top; }}
-  table.kv th {{ text-align:left; color:#374151; width:220px; }}
+  table.kv th {{ text-align:left; color:var(--muted); width:220px; }}
   table.grid {{ width:100%; border-collapse:collapse; margin-top:6px; }}
   table.grid.small td, table.grid.small th {{ padding:4px 6px; }}
-  table.grid th, table.grid td {{ border:1px solid #e5e7eb; padding:6px 8px; }}
-  code {{ background:#f9fafb; padding:2px 4px; border-radius:4px; }}
+  table.grid th, table.grid td {{ border:1px solid var(--border); padding:6px 8px; }}
+  code {{ background:var(--bg-secondary); color:var(--fg); padding:2px 4px; border-radius:4px; }}
 </style>
 """
     return page("OIDC Health", html)
@@ -361,16 +360,15 @@ def health_saml_ui():
 </table>
 
 <style>
-  :root {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }}
-  .badge {{ display:inline-block; padding:2px 10px; border-radius:999px; background:#eee; }}
-  .ok {{ background:#d1fae5; }}
-  .warn {{ background:#fef3c7; }}
-  .fail {{ background:#fee2e2; }}
+  .badge {{ display:inline-block; padding:2px 10px; border-radius:999px; }}
+  .ok {{ background:var(--badge-pass-bg); color:var(--badge-pass-fg); }}
+  .warn {{ background:var(--badge-warn-bg); color:var(--badge-warn-fg); }}
+  .fail {{ background:var(--badge-fail-bg); color:var(--badge-fail-fg); }}
   table.kv td, table.kv th {{ padding:6px 8px; vertical-align:top; }}
-  table.kv th {{ text-align:left; color:#374151; width:160px; }}
+  table.kv th {{ text-align:left; color:var(--muted); width:160px; }}
   table.grid {{ width:100%; border-collapse:collapse; }}
-  table.grid th, table.grid td {{ border:1px solid #e5e7eb; padding:6px 8px; }}
-  code {{ background:#f9fafb; padding:2px 4px; border-radius:4px; }}
+  table.grid th, table.grid td {{ border:1px solid var(--border); padding:6px 8px; }}
+  code {{ background:var(--bg-secondary); color:var(--fg); padding:2px 4px; border-radius:4px; }}
 </style>
 """
     # use your site wrapper for consistent look

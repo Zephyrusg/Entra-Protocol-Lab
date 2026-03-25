@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Integration Checker &bull; Entra Protocol Lab</title>
     <link rel="stylesheet" href="/static/css/app.css">
+    <script src="/static/js/theme.js"></script>
     <style>
         body {
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
@@ -25,9 +26,10 @@
         }
 
         .card {
-            border: 1px solid #e5e7eb;
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 16px;
+            background: var(--card-bg);
         }
 
         label {
@@ -42,11 +44,13 @@
         textarea {
             width: 100%;
             padding: 6px 8px;
-            border: 1px solid #d1d5db;
+            border: 1px solid var(--input-border);
             border-radius: 8px;
             margin-top: 4px;
             font-size: 14px;
             box-sizing: border-box;
+            background: var(--input-bg);
+            color: var(--fg);
         }
 
         textarea {
@@ -58,26 +62,26 @@
         button {
             padding: 8px 16px;
             border-radius: 8px;
-            border: 1px solid #e5e7eb;
-            background: #111827;
-            color: #fff;
+            border: 1px solid var(--border);
+            background: var(--btn-bg);
+            color: var(--btn-fg);
             cursor: pointer;
             margin-top: 12px;
             font-size: 14px;
         }
 
         button:hover {
-            background: #374151;
+            background: var(--btn-hover);
         }
 
         button.secondary {
-            background: #fff;
-            color: #111827;
-            border: 1px solid #d1d5db;
+            background: var(--btn-secondary-bg);
+            color: var(--btn-secondary-fg);
+            border: 1px solid var(--btn-secondary-border);
         }
 
         button.secondary:hover {
-            background: #f3f4f6;
+            background: var(--btn-secondary-hover);
         }
 
         .badge {
@@ -89,18 +93,18 @@
         }
 
         .pass {
-            background: #d1fae5;
-            color: #065f46;
+            background: var(--badge-pass-bg);
+            color: var(--badge-pass-fg);
         }
 
         .fail {
-            background: #fee2e2;
-            color: #991b1b;
+            background: var(--badge-fail-bg);
+            color: var(--badge-fail-fg);
         }
 
         .warn {
-            background: #fef3c7;
-            color: #92400e;
+            background: var(--badge-warn-bg);
+            color: var(--badge-warn-fg);
         }
 
         .check-row {
@@ -108,7 +112,7 @@
             align-items: flex-start;
             gap: 10px;
             padding: 8px 0;
-            border-bottom: 1px solid #f3f4f6;
+            border-bottom: 1px solid var(--border-light);
         }
 
         .check-row:last-child {
@@ -129,11 +133,11 @@
         .guidance {
             margin-top: 4px;
             padding: 8px 12px;
-            background: #eff6ff;
-            border-left: 3px solid #3b82f6;
+            background: var(--guidance-bg);
+            border-left: 3px solid var(--guidance-border);
             border-radius: 0 8px 8px 0;
             font-size: 13px;
-            color: #1e40af;
+            color: var(--guidance-fg);
         }
 
         .summary-bar {
@@ -153,8 +157,8 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            background: #f3f4f6;
-            border: 1px solid #d1d5db;
+            background: var(--tag-bg);
+            border: 1px solid var(--tag-border);
             border-radius: 6px;
             padding: 2px 8px;
             font-size: 13px;
@@ -164,7 +168,7 @@
             margin: 0;
             padding: 0 2px;
             background: none;
-            color: #991b1b;
+            color: var(--badge-fail-fg);
             border: none;
             font-size: 16px;
             cursor: pointer;
@@ -188,8 +192,8 @@
         }
 
         pre {
-            background: #111827;
-            color: #e5e7eb;
+            background: var(--code-bg);
+            color: var(--code-fg);
             border-radius: 8px;
             padding: 12px;
             overflow: auto;
@@ -201,7 +205,7 @@
         }
 
         .desc {
-            color: #6b7280;
+            color: var(--muted);
             font-size: 13px;
             margin-top: 2px;
         }
@@ -213,13 +217,14 @@
 </head>
 
 <body>
-    <nav style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+    <nav style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
         <a href="/">Home</a>
         <a href="/oidc/login?next=/tools/integration/ui">OIDC Login</a>
         <a href="/saml/login?next=/tools/integration/ui">SAML Login</a>
         <a href="/oidc/user">OIDC User</a>
         <a href="/saml/user">SAML User</a>
         <a href="/tools/jwt/ui">JWT Validator</a>
+        <button id="theme-toggle" class="theme-toggle" style="margin:0"></button>
     </nav>
     <h1>Integration Checker</h1>
     <p>Validate your Entra OIDC/SAML token against what a target application expects.
