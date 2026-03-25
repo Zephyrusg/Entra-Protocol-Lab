@@ -82,10 +82,18 @@ body {
   transition: background 0.2s, color 0.2s;
 }
 
-a { color: var(--link); }
-a:visited { color: var(--link); }
+a {
+  color: var(--link);
+}
 
-hr { border: 0; border-top: 1px solid var(--hr); }
+a:visited {
+  color: var(--link);
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--hr);
+}
 
 /* ── Code blocks ── */
 pre.code {
@@ -95,12 +103,15 @@ pre.code {
   padding: 12px;
   overflow: auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-               "Liberation Mono", "Courier New", monospace;
+    "Liberation Mono", "Courier New", monospace;
   font-size: 14px;
   line-height: 1.4;
 }
 
-pre.code.wrap { white-space: pre-wrap; word-break: break-word; }
+pre.code.wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 /* ── Empty value highlight ── */
 .empty-val {
@@ -122,4 +133,7 @@ pre.code.wrap { white-space: pre-wrap; word-break: break-word; }
   font-size: 14px;
   line-height: 1;
 }
-.theme-toggle:hover { background: var(--btn-secondary-hover); }
+
+.theme-toggle:hover {
+  background: var(--btn-secondary-hover);
+}
