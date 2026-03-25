@@ -8,6 +8,9 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 - 🎫 **SAML Authentication**: Test SAML 2.0 flows with Entra Enterprise Applications
 - 🔍 **Token Inspection**: View and debug ID tokens, access tokens, and SAML assertions
 - 📋 **Response Analysis**: Pretty-printed JSON for easy debugging
+- ✅ **Integration Checker**: Validate claims mapping against application presets (e.g. vCloud Director) with pass/fail/warning results and Entra fix guidance
+- 🩺 **Health Checks**: Verify OIDC and SAML endpoint connectivity and configuration
+- 🔑 **JWT Validator**: Decode and inspect JWT tokens
 
 ## Quick Start
 
@@ -30,12 +33,16 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 2. **Install dependencies**
 
    ```bash
+   # xmlsec1 is required for SAML XML signature verification
+   # On Debian/Ubuntu:
    apt update
-   apt install -y xmlsec1 ca-certificates curl git
-
+   apt install -y xmlsec1 ca-certificates curl
    curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+   
    Restart Terminal Session to load UV
-
+   
+   ```bash
    # Using uv (recommended)
    uv sync
    ```
@@ -54,7 +61,7 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
    # OIDC_REDIRECT_URI is automatically set to BASE_URL + /oidc/callback
    # PORT is mainly for Docker container port exposure
 
-   PORT=3000
+   # PORT=3000
    BASE_URL="http://localhost:3000"
    SESSION_SECRET="your-secure-session-secret-here"
    TENANT_ID="your-tenant-id"
@@ -73,7 +80,7 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 
    ```bash
    # Source environment variables and run
-   source .env && uv run python run.py
+   uv run python run.py
    ```
 
 5. **Access the application**
@@ -133,6 +140,18 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 2. Complete the Entra ID SAML authentication
 3. View the SAML assertion and user attributes at `/saml/user`
 
+### Using the Integration Checker
+
+The Integration Checker validates whether your Entra token contains the claims an application expects.
+
+1. Navigate to `/tools/integration/ui`
+2. Select a **Preset** (e.g. *VMware Cloud Director — SAML*) or configure custom checks
+3. Choose **Claims Source**: pick *From current session* and login first, or *Paste claims JSON manually*
+4. Click **Validate**
+5. Review the results — ✅ pass, ❌ fail, ⚠️ warning — each with Entra-specific guidance on how to fix it
+
+> **Tip:** You can login and return directly to the checker using the OIDC/SAML Login links in the navigation bar. The `?next=` parameter redirects you back after authentication.
+
 ### Available Endpoints
 
 #### Main Endpoints
@@ -140,7 +159,7 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 - `/__routes` - Display all available routes (debug helper)
 
 #### OIDC Endpoints
-- `/oidc/login` - Initiate OIDC login
+- `/oidc/login` - Initiate OIDC login (supports `?next=/path` to redirect after login)
 - `/oidc/callback` - OIDC callback endpoint
 - `/oidc/user` - View OIDC user info and tokens
 - `/oidc/logout` - OIDC logout
@@ -148,8 +167,9 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 - `/oidc/logout-url` - Get OIDC logout URL
 
 #### SAML Endpoints
-- `/saml/login` - Initiate SAML login
+- `/saml/login` - Initiate SAML login (supports `?next=/path` to redirect after login)
 - `/saml/acs` - SAML Assertion Consumer Service
+- `/saml/acs-complete` - Intermediate redirect after SAML ACS (handles SameSite cookie flow)
 - `/saml/user` - View SAML user info and assertions
 - `/saml/logout` - SAML logout
 - `/saml/logout-url` - Get SAML logout URL
@@ -164,7 +184,7 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 - `/tools/integration/ui` - Integration validation UI (check claims against app profiles)
 - `/tools/integration/validate` - POST endpoint for integration validation
 - `/tools/integration/presets` - List available app presets (vCloud Director, etc.)
-- `/tools/integration/session/oidc` -  Get OIDC claims from current session
+- `/tools/integration/session/oidc` - Get OIDC claims from current session
 - `/tools/integration/session/saml` - Get SAML attributes from current session
 
 #### Tools - Health Checks
@@ -210,6 +230,8 @@ entra-protocol-lab/
 │   │   └── js/
 │   │       ├── jwt-ui.js    # JWT UI JavaScript
 │   │       └── integration-ui.js  # Integration Checker UI JavaScript
+│   ├── templates/           # Jinja2 HTML templates
+│   │   └── integration.html # Integration Checker UI page
 │   ├── tools/               # Utility tools
 │   │   ├── __init__.py      # Tools module initialization
 │   │   ├── health.py        # Health check endpoints
@@ -218,12 +240,12 @@ entra-protocol-lab/
 │   └── utils/               # Shared utilities
 │       ├── __init__.py      # Utils module initialization
 │       ├── crypto.py        # PKCE helpers
-│       └── html.py          # HTML templates
+│       └── html.py          # HTML helper utilities (page wrapper, pretty_json, redact)
 ├── Dockerfile              # Docker container configuration
 ├── pyproject.toml          # Python project configuration
 ├── Readme.md               # Project documentation
 ├── .sampleEnv              # Environment template
-├── .env                    # Environment configuration (create from .sampleEnv)
+├── .env                    # Your local config (gitignored — create from .sampleEnv)
 ├── run.py                 # Development server
 └── wsgi.py               # Production WSGI entry point
 ```
@@ -234,6 +256,9 @@ entra-protocol-lab/
 
 1. **Redirect URI Mismatch**: Ensure URLs match between Entra and your `.env` file
 2. **Session Issues**: Generate a strong `SESSION_SECRET`
+3. **SAML fails with cryptic XML error**: Make sure `xmlsec1` is installed (`apt install xmlsec1` or `brew install libxmlsec1` on macOS). Without it, SAML signature verification fails silently.
+4. **Cookie / session lost after login**: If running behind a reverse proxy with HTTPS, ensure `BASE_URL` uses `https://`. SameSite cookie behaviour differs between HTTP and HTTPS, which can cause sessions to be dropped on the redirect back from Entra.
+5. **Session storage growing**: Sessions are stored as files in `/tmp/flask-sessions` with a 4-hour lifetime. On long-running instances, old files may accumulate. Clean up with `find /tmp/flask-sessions -mtime +1 -delete`.
 
 ### Debug Mode
 

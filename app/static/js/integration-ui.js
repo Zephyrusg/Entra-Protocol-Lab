@@ -55,7 +55,7 @@
             input.addEventListener("keydown", (e) => {
                 if (e.key === "Enter") {
                     e.preventDefault();
-                    window.addTag(key);
+                    addTag(key);
                 }
             });
         }
@@ -96,51 +96,8 @@
     });
 
     async function loadPresetDetails(key) {
-        // Fetch full preset from the presets endpoint — but we already have the
-        // summary. For the full required_claims etc., call validate with source=manual
-        // and empty claims to get the preset. Instead, hardcode from our known presets.
-        // Better: fetch from a dedicated endpoint. For now, we can use the preset key
-        // and fetch the full config via a small trick: call validate with a dummy
-        // and parse the error, or just keep preset details in JS too.
-        //
-        // Simplest: we embed known preset details by fetching the presets API
-        // which only returns summary. So let's load them from the response
-        // of /presets which gives name/protocol/description. The actual claim
-        // lists come from the server at validate time via the preset key.
-        // BUT we want to pre-populate the form so users can see/edit.
-        //
-        // Solution: We hardcode the most important presets client-side too.
-        const PRESET_DETAILS = {
-            vcloud_director_saml: {
-                required_claims: [
-                    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
-                    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
-                    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname",
-                    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname",
-                ],
-                optional_claims: [
-                    "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups",
-                    "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
-                ],
-                nameid_format:
-                    "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
-                expected_issuer: "",
-                expected_audience: "",
-                required_groups: [],
-                required_roles: [],
-            },
-            vcloud_director_oidc: {
-                required_claims: ["email", "name", "preferred_username", "sub"],
-                optional_claims: ["groups", "roles"],
-                nameid_format: "",
-                expected_issuer: "",
-                expected_audience: "",
-                required_groups: [],
-                required_roles: [],
-            },
-        };
-
-        const details = PRESET_DETAILS[key];
+        // Use full preset data already fetched from /presets API
+        const details = presets[key];
         if (!details) return;
 
         tags["req-claims"] = [...(details.required_claims || [])];
