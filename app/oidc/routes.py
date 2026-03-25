@@ -39,12 +39,22 @@ def callback() -> ResponseReturnValue:
     verifier = session.pop("oidc_code_verifier", None)
     nonce = session.pop("oidc_nonce", None)
     if not verifier or not nonce:
-        return page("OIDC Error", "<p>Missing PKCE verifier or nonce in session.</p>")
+        # Session may not have been established on the very first login
+        # attempt (cookie race). Retry once automatically.
+        retries = session.get("oidc_retry", 0)
+        if retries < 1:
+            session["oidc_retry"] = retries + 1
+            return redirect(url_for("oidc.login", **request.args))
+        session.pop("oidc_retry", None)
+        return page("OIDC Error", "<p>Missing PKCE verifier or nonce in session. "
+                     "This usually means the session cookie was lost during the login redirect. "
+                     "Try <a href='/oidc/login'>logging in again</a>.</p>")
 
     token = get_client().authorize_access_token(code_verifier=verifier)
     if not token:
         return page("OIDC Error", "<p>Token exchange failed.</p>")
 
+    session.pop("oidc_retry", None)
     claims = get_client().parse_id_token(token, nonce=nonce)
     session["oidc"] = {"token": token, "claims": claims}
     next_url = session.pop("login_next", None) or request.cookies.get("login_next")
