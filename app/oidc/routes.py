@@ -1,6 +1,7 @@
 import secrets, os
 from flask import Blueprint, session, redirect, url_for, request, make_response
 from flask.typing import ResponseReturnValue
+from authlib.integrations.base_client.errors import OAuthError
 from .client import get_client
 from ..utils.crypto import pkce_challenge
 from ..utils.html import page, pretty_json, redact
@@ -50,7 +51,18 @@ def callback() -> ResponseReturnValue:
                      "This usually means the session cookie was lost during the login redirect. "
                      "Try <a href='/oidc/login'>logging in again</a>.</p>")
 
-    token = get_client().authorize_access_token(code_verifier=verifier)
+    try:
+        token = get_client().authorize_access_token(code_verifier=verifier)
+    except OAuthError as exc:
+        desc = str(exc.description or exc)
+        if "AADSTS7000215" in desc or "invalid_client" in str(exc.error or ""):
+            return page("OIDC Error — Invalid Client Secret",
+                        "<p><b>The client secret is invalid or expired.</b></p>"
+                        "<p>Go to <b>Entra → App Registrations → [your app] → Certificates &amp; secrets</b>, "
+                        "create a new secret, and update <code>OIDC_CLIENT_SECRET</code> in your <code>.env</code> file.</p>"
+                        "<p style='margin-top:12px;color:#6b7280;font-size:13px'>Make sure you copy the secret <b>Value</b>, not the Secret ID.</p>")
+        return page("OIDC Error", f"<p><b>Token exchange failed:</b> {desc}</p>"
+                     "<p>Check your Entra app configuration and try <a href='/oidc/login'>logging in again</a>.</p>")
     if not token:
         return page("OIDC Error", "<p>Token exchange failed.</p>")
 
