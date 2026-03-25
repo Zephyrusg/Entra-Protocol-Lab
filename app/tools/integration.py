@@ -368,21 +368,21 @@ def validate_route():
         if protocol == "oidc":
             sess = session.get("oidc")
             if not sess:
-                return jsonify({"error": "No OIDC session. Login via /oidc/login first."}), 400
+                return jsonify({"error": "No OIDC session. Log in first via the OIDC Login link above."})
             claims = sess.get("claims", {})
         else:
             sess = session.get("saml_user")
             if not sess:
-                return jsonify({"error": "No SAML session. Login via /saml/login first."}), 400
+                return jsonify({"error": "No SAML session. Log in first via the SAML Login link above."})
             claims = _flatten_saml_session(sess)
     else:
         claims = data.get("claims", {})
 
     if not claims:
-        return jsonify({"error": "No claims provided and no active session found."}), 400
+        return jsonify({"error": "No claims provided. Log in first or switch to 'Paste claims JSON manually'."})
 
     if not profile.get("required_claims") and not profile.get("optional_claims"):
-        return jsonify({"error": "No checks defined. Select a preset or add required_claims."}), 400
+        return jsonify({"error": "No checks defined. Select a preset or add required/optional claims."})
 
     results = validate_profile(protocol, claims, profile)
 
