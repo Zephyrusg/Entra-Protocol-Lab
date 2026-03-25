@@ -154,12 +154,23 @@ def _extract_assertion_details(authn) -> dict:
 
 @bp.get("/login")
 def login() -> ResponseReturnValue:
+    # Allow ?next=/some/path to redirect back after login
+    next_url = request.args.get("next")
+    if next_url and next_url.startswith("/"):
+        session["login_next"] = next_url
+        session.modified = True
+
     client = saml_client()
     reqid, info = client.prepare_for_authenticate()
     # info['headers'] is a list of (Name, Value); find the redirect Location
     for k, v in info.get("headers", []):
         if k.lower() == "location":
-            return redirect(v, code=302)
+            resp = redirect(v, code=302)
+            # Set cookie as backup — session may not survive the IdP round-trip
+            if next_url and next_url.startswith("/"):
+                resp.set_cookie("login_next", next_url, max_age=600,
+                                httponly=True, samesite="Lax")
+            return resp
     return page("SAML Error", "<p>Failed to build SAML AuthnRequest.</p>")
 
 @bp.post("/acs")
@@ -194,7 +205,18 @@ def acs():
         "authn_context": _safe_authn_context(authn),
         "assertion_details": _extract_assertion_details(authn),
     }
-    return redirect("/saml/user", code=302)
+    # Redirect to a same-site GET so that Lax cookies (login_next) are available
+    return redirect("/saml/acs-complete", code=302)
+
+
+@bp.get("/acs-complete")
+def acs_complete():
+    """Intermediate same-site GET after SAML ACS POST — reads the login_next cookie."""
+    next_url = session.pop("login_next", None) or request.cookies.get("login_next")
+    dest = next_url if next_url and next_url.startswith("/") else "/saml/user"
+    resp = make_response(redirect(dest, code=302))
+    resp.delete_cookie("login_next")
+    return resp
 
 @bp.get("/user")
 def user() -> ResponseReturnValue:

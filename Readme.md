@@ -160,6 +160,13 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 - `/tools/jwt/ui` - JWT token validation and inspection tool
 - `/tools/jwt/validate` - POST endpoint for JWT validation
 
+#### Tools - Integration Checker
+- `/tools/integration/ui` - Integration validation UI (check claims against app profiles)
+- `/tools/integration/validate` - POST endpoint for integration validation
+- `/tools/integration/presets` - List available app presets (vCloud Director, etc.)
+- `/tools/integration/session/oidc` -  Get OIDC claims from current session
+- `/tools/integration/session/saml` - Get SAML attributes from current session
+
 #### Tools - Health Checks
 - `/tools/health/oidc` - OIDC health check
 - `/tools/health/oidc/ui` - OIDC health check with UI
@@ -201,10 +208,12 @@ entra-protocol-lab/
 │   │   ├── css/
 │   │   │   └── app.css      # Application styles
 │   │   └── js/
-│   │       └── jwt-ui.js    # JWT UI JavaScript
+│   │       ├── jwt-ui.js    # JWT UI JavaScript
+│   │       └── integration-ui.js  # Integration Checker UI JavaScript
 │   ├── tools/               # Utility tools
 │   │   ├── __init__.py      # Tools module initialization
 │   │   ├── health.py        # Health check endpoints
+│   │   ├── integration.py   # Integration checker (claims validation)
 │   │   └── jwt.py           # JWT validation tools
 │   └── utils/               # Shared utilities
 │       ├── __init__.py      # Utils module initialization

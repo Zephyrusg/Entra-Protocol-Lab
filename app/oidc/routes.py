@@ -1,5 +1,5 @@
 import secrets, os
-from flask import Blueprint, session, redirect, url_for, request
+from flask import Blueprint, session, redirect, url_for, request, make_response
 from flask.typing import ResponseReturnValue
 from .client import get_client
 from ..utils.crypto import pkce_challenge
@@ -11,18 +11,28 @@ bp = Blueprint("oidc", __name__)
 
 @bp.get("/login")
 def login() -> ResponseReturnValue:
+    # Allow ?next=/some/path to redirect back after login
+    next_url = request.args.get("next")
+    if next_url and next_url.startswith("/"):
+        session["login_next"] = next_url
+        session.modified = True
+
     verifier = secrets.token_urlsafe(64)
     session["oidc_code_verifier"] = verifier
     challenge = pkce_challenge(verifier)
     nonce = secrets.token_urlsafe(32)
     session["oidc_nonce"] = nonce
 
-    return get_client().authorize_redirect(
+    resp = get_client().authorize_redirect(
         redirect_uri=settings.OIDC_REDIRECT_URI,
         code_challenge=challenge,
         code_challenge_method="S256",
         nonce=nonce,
     )
+    # Set cookie as backup — session may not survive the IdP round-trip
+    if next_url and next_url.startswith("/"):
+        resp.set_cookie("login_next", next_url, max_age=600, httponly=True, samesite="Lax")
+    return resp
 
 @bp.get("/callback")
 def callback() -> ResponseReturnValue:
@@ -37,7 +47,11 @@ def callback() -> ResponseReturnValue:
 
     claims = get_client().parse_id_token(token, nonce=nonce)
     session["oidc"] = {"token": token, "claims": claims}
-    return redirect(url_for("oidc.user"))
+    next_url = session.pop("login_next", None) or request.cookies.get("login_next")
+    dest = next_url if next_url and next_url.startswith("/") else url_for("oidc.user")
+    resp = make_response(redirect(dest))
+    resp.delete_cookie("login_next")
+    return resp
 
 @bp.get("/user")
 def user() -> ResponseReturnValue:

@@ -10,6 +10,7 @@ from .oidc.routes import bp as oidc_bp
 from .saml.routes import bp as saml_bp
 from .tools.jwt import bp as jwt_tools_bp
 from .tools.health import bp as health_tools_bp
+from .tools.integration import bp as integration_tools_bp
 from datetime import timedelta
 from .utils.html import page
 
@@ -69,6 +70,7 @@ def create_app() -> Flask:
     app.register_blueprint(saml_bp, url_prefix="/saml")
     app.register_blueprint(jwt_tools_bp, url_prefix="/tools/jwt") # /tools/jwt/...
     app.register_blueprint(health_tools_bp, url_prefix="/tools/health")
+    app.register_blueprint(integration_tools_bp, url_prefix="/tools/integration")
 
 
     # Security headers on every response
@@ -141,6 +143,18 @@ def create_app() -> Flask:
     <li><a href="/tools/jwt/ui">/tools/jwt/ui</a></li>
     <!-- POST endpoint, shown for reference only:
          /tools/jwt/validate -->
+  </ul>
+</details>
+
+<details>
+  <summary>Tools — Integration Checker</summary>
+  <ul>
+    <li><a href="/tools/integration/ui">/tools/integration/ui</a></li>
+    <!-- API endpoints:
+         POST /tools/integration/validate
+         GET  /tools/integration/presets
+         GET  /tools/integration/session/oidc
+         GET  /tools/integration/session/saml -->
   </ul>
 </details>
 
