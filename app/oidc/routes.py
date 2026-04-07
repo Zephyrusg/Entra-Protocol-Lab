@@ -1,4 +1,4 @@
-import secrets, os
+import secrets, os, ssl, logging
 from flask import Blueprint, session, redirect, url_for, request, make_response
 from flask.typing import ResponseReturnValue
 from authlib.integrations.base_client.errors import OAuthError
@@ -7,8 +7,71 @@ from ..utils.crypto import pkce_challenge
 from ..utils.html import page, pretty_json, redact
 from ..config import settings
 from urllib.parse import urlencode
+from requests.exceptions import SSLError, ConnectionError as ReqConnectionError
+
+log = logging.getLogger(__name__)
 
 bp = Blueprint("oidc", __name__)
+
+_ERR_CSS = ("<style>.err-box{background:var(--badge-fail-bg);color:var(--badge-fail-fg);"
+            "border:2px solid currentColor;border-radius:12px;padding:20px 24px;margin:16px 0}"
+            ".err-box h2{margin:0 0 8px;font-size:1.1rem}.err-box ul{margin:8px 0 0 16px}</style>")
+
+
+def _ssl_error_page(title: str, exc: Exception) -> ResponseReturnValue:
+    """Return a friendly error page for SSL / connectivity failures."""
+    msg = str(exc)
+    # Walk the exception chain to detect wrapped SSL errors
+    is_ssl = isinstance(exc, (ssl.SSLCertVerificationError, SSLError)) or "CERTIFICATE_VERIFY_FAILED" in msg
+    if not is_ssl:
+        cause = exc.__cause__ or exc.__context__
+        while cause and not is_ssl:
+            if isinstance(cause, (ssl.SSLCertVerificationError, SSLError)) or "CERTIFICATE_VERIFY_FAILED" in str(cause):
+                is_ssl = True
+            cause = cause.__cause__ or cause.__context__
+
+    if is_ssl:
+        log.warning("SSL certificate verification failed for IDP: %s", msg)
+        html = (_ERR_CSS +
+            "<div class='err-box'>"
+            "<h2>\U0001f512 SSL Certificate Not Trusted</h2>"
+            "<p>The identity provider's SSL certificate could <b>not be verified</b>. "
+            "This usually means the IDP uses a self-signed certificate or one issued by a CA "
+            "that this machine does not trust.</p>"
+            "</div>"
+            "<h3>How to fix</h3>"
+            "<ul>"
+            "<li>Add the IDP's CA certificate to the system trust store "
+            "(<code>/etc/ssl/certs/</code> or <code>update-ca-certificates</code>)</li>"
+            "<li>Set <code>REQUESTS_CA_BUNDLE=/path/to/ca-bundle.crt</code> in your environment</li>"
+            "<li>For testing <b>only</b>, set <code>SSL_VERIFY=false</code> in your <code>.env</code></li>"
+            "</ul>"
+            f"<details style='margin-top:12px'><summary>Full error</summary><pre class='code'>{msg}</pre></details>"
+            "<p style='margin-top:16px'><a href='/tools/idpconfig/ui'>\u2190 IDP Configuration</a></p>")
+        return page(f"{title} \u2014 SSL Certificate Error", html), 502
+
+    is_conn = isinstance(exc, (ReqConnectionError, ConnectionError, OSError))
+    if is_conn:
+        log.warning("Connection failed to IDP: %s", msg)
+        html = (_ERR_CSS +
+            "<div class='err-box'>"
+            "<h2>\u26a0\ufe0f Connection Failed</h2>"
+            "<p>Could <b>not connect</b> to the identity provider. "
+            "Check that the metadata URL is correct and reachable from this machine.</p>"
+            "</div>"
+            f"<details style='margin-top:12px'><summary>Full error</summary><pre class='code'>{msg}</pre></details>"
+            "<p style='margin-top:16px'><a href='/tools/idpconfig/ui'>\u2190 IDP Configuration</a></p>")
+        return page(f"{title} \u2014 Connection Error", html), 502
+
+    log.warning("IDP error during %s: %s", title, msg)
+    html = (_ERR_CSS +
+        "<div class='err-box'>"
+        "<h2>\u26a0\ufe0f Identity Provider Error</h2>"
+        "<p>An error occurred while contacting the identity provider.</p>"
+        "</div>"
+        f"<details style='margin-top:12px'><summary>Full error</summary><pre class='code'>{msg}</pre></details>"
+        "<p style='margin-top:16px'><a href='/tools/idpconfig/ui'>\u2190 IDP Configuration</a></p>")
+    return page(f"{title} \u2014 Error", html), 502
 
 @bp.get("/login")
 def login() -> ResponseReturnValue:
@@ -24,12 +87,15 @@ def login() -> ResponseReturnValue:
     nonce = secrets.token_urlsafe(32)
     session["oidc_nonce"] = nonce
 
-    resp = get_client().authorize_redirect(
-        redirect_uri=settings.OIDC_REDIRECT_URI,
-        code_challenge=challenge,
-        code_challenge_method="S256",
-        nonce=nonce,
-    )
+    try:
+        resp = get_client().authorize_redirect(
+            redirect_uri=settings.OIDC_REDIRECT_URI,
+            code_challenge=challenge,
+            code_challenge_method="S256",
+            nonce=nonce,
+        )
+    except Exception as exc:
+        return _ssl_error_page("OIDC Login", exc)
     # Set cookie as backup — session may not survive the IdP round-trip
     if next_url and next_url.startswith("/"):
         resp.set_cookie("login_next", next_url, max_age=600, httponly=True, samesite="Lax")
@@ -63,6 +129,8 @@ def callback() -> ResponseReturnValue:
                         "<p style='margin-top:12px;color:#6b7280;font-size:13px'>Make sure you copy the secret <b>Value</b>, not the Secret ID.</p>")
         return page("OIDC Error", f"<p><b>Token exchange failed:</b> {desc}</p>"
                      "<p>Check your Entra app configuration and try <a href='/oidc/login'>logging in again</a>.</p>")
+    except Exception as exc:
+        return _ssl_error_page("OIDC Callback", exc)
     if not token:
         return page("OIDC Error", "<p>Token exchange failed.</p>")
 

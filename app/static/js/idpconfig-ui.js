@@ -122,14 +122,72 @@
             .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
             .then(function (res) {
                 if (res.data.ok) {
-                    showStatus("Settings applied. OIDC client re-initialized.", true);
+                    showStatus("Settings applied. Running connectivity test\u2026", true);
                     populateForm(res.data.settings);
+                    testConnectivity();
                 } else {
                     showStatus("Error: " + (res.data.error || "Unknown error"), false);
                 }
             })
             .catch(function (e) { showStatus("Request failed: " + e, false); })
             .finally(function () { $("apply-btn").disabled = false; });
+    }
+
+    // ── Test connectivity ──
+    function esc(s) {
+        var d = document.createElement("div");
+        d.appendChild(document.createTextNode(s || ""));
+        return d.innerHTML;
+    }
+
+    function testConnectivity() {
+        var el = $("test-results");
+        el.innerHTML = "<p style='color:var(--muted)'>Testing connectivity\u2026</p>";
+        $("test-btn").disabled = true;
+        fetch("/tools/idpconfig/test", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) { renderTestResults(data.results); })
+            .catch(function (e) { el.innerHTML = "<p style='color:var(--badge-fail-fg)'>Test request failed: " + esc(String(e)) + "</p>"; })
+            .finally(function () { $("test-btn").disabled = false; });
+    }
+
+    function renderTestResults(results) {
+        var el = $("test-results");
+        if (!results || !results.length) {
+            el.innerHTML = "<p style='color:var(--muted)'>No metadata URLs configured to test.</p>";
+            return;
+        }
+        var html = "<h3>Connectivity Test Results</h3>";
+        results.forEach(function (r) {
+            var ok = !r.error;
+            var cls = ok ? "pass" : "fail";
+            var icon = ok ? "\u2705" : "\u274c";
+            html += "<div class='test-card " + cls + "'>";
+            html += "<h3>" + icon + " " + esc(r.label) + " Metadata</h3>";
+            html += "<div class='url'>" + esc(r.url) + "</div>";
+            if (r.error) {
+                html += "<div class='detail'><b>Problem:</b> " + esc(r.error) + "</div>";
+                if (r.detail) {
+                    html += "<div class='detail' style='font-size:0.8rem;opacity:0.8'>" + esc(r.detail) + "</div>";
+                }
+                if (r.ssl_ok === false && r.reachable) {
+                    html += "<div class='detail' style='margin-top:8px'>"
+                        + "<b>Fix:</b> Add the IDP's CA certificate to this machine's trust store, "
+                        + "or set <code>REQUESTS_CA_BUNDLE=/path/to/ca.crt</code> in your environment."
+                        + "</div>";
+                }
+            } else {
+                html += "<div class='detail'>" + esc(r.detail || "Connection OK") + "</div>";
+                if (r.status_code) {
+                    html += "<div class='detail' style='font-size:0.8rem;opacity:0.8'>HTTP " + r.status_code + "</div>";
+                }
+            }
+            html += "</div>";
+        });
+        el.innerHTML = html;
     }
 
     function resetSettings() {
@@ -160,6 +218,7 @@
         initSecretToggles();
         $("idp-preset").addEventListener("change", onPresetChange);
         $("apply-btn").addEventListener("click", applySettings);
+        $("test-btn").addEventListener("click", testConnectivity);
         $("reset-btn").addEventListener("click", resetSettings);
     });
 })();

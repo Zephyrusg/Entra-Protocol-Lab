@@ -12,13 +12,76 @@ from saml2 import BINDING_HTTP_POST
 from typing import Any, Dict, List, Tuple
 import os
 
-import uuid, zlib, base64, datetime as dt
+import uuid, zlib, base64, datetime as dt, logging
 from urllib.parse import urlencode
 import requests
+from requests.exceptions import SSLError, ConnectionError as ReqConnectionError
+import ssl
 import xml.etree.ElementTree as ET
 
+log = logging.getLogger(__name__)
 
 bp = Blueprint("saml", __name__, url_prefix="/saml")
+
+_ERR_CSS = ("<style>.err-box{background:var(--badge-fail-bg);color:var(--badge-fail-fg);"
+            "border:2px solid currentColor;border-radius:12px;padding:20px 24px;margin:16px 0}"
+            ".err-box h2{margin:0 0 8px;font-size:1.1rem}.err-box ul{margin:8px 0 0 16px}</style>")
+
+
+def _ssl_or_metadata_error(title: str, exc: Exception) -> ResponseReturnValue:
+    """Return a friendly error page for SSL / connectivity failures."""
+    msg = str(exc)
+    # Walk the exception chain to detect wrapped SSL errors
+    is_ssl = isinstance(exc, (ssl.SSLCertVerificationError, SSLError)) or "CERTIFICATE_VERIFY_FAILED" in msg
+    if not is_ssl:
+        cause = exc.__cause__ or exc.__context__
+        while cause and not is_ssl:
+            if isinstance(cause, (ssl.SSLCertVerificationError, SSLError)) or "CERTIFICATE_VERIFY_FAILED" in str(cause):
+                is_ssl = True
+            cause = cause.__cause__ or cause.__context__
+
+    if is_ssl:
+        log.warning("SSL certificate verification failed for IDP: %s", msg)
+        html = (_ERR_CSS +
+            "<div class='err-box'>"
+            "<h2>\U0001f512 SSL Certificate Not Trusted</h2>"
+            "<p>The identity provider's SSL certificate could <b>not be verified</b>. "
+            "This usually means the IDP uses a self-signed certificate or one issued by a CA "
+            "that this machine does not trust.</p>"
+            "</div>"
+            "<h3>How to fix</h3>"
+            "<ul>"
+            "<li>Add the IDP's CA certificate to the system trust store "
+            "(<code>/etc/ssl/certs/</code> or <code>update-ca-certificates</code>)</li>"
+            "<li>Set <code>REQUESTS_CA_BUNDLE=/path/to/ca-bundle.crt</code> in your environment</li>"
+            "<li>For testing <b>only</b>, set <code>SSL_VERIFY=false</code> in your <code>.env</code></li>"
+            "</ul>"
+            f"<details style='margin-top:12px'><summary>Full error</summary><pre class='code'>{msg}</pre></details>"
+            "<p style='margin-top:16px'><a href='/tools/idpconfig/ui'>\u2190 IDP Configuration</a></p>")
+        return page(f"{title} \u2014 SSL Certificate Error", html), 502
+
+    is_conn = isinstance(exc, (ReqConnectionError, ConnectionError, OSError))
+    if is_conn:
+        log.warning("Connection failed to IDP: %s", msg)
+        html = (_ERR_CSS +
+            "<div class='err-box'>"
+            "<h2>\u26a0\ufe0f Connection Failed</h2>"
+            "<p>Could <b>not connect</b> to the identity provider. "
+            "Check that the metadata URL is correct and reachable from this machine.</p>"
+            "</div>"
+            f"<details style='margin-top:12px'><summary>Full error</summary><pre class='code'>{msg}</pre></details>"
+            "<p style='margin-top:16px'><a href='/tools/idpconfig/ui'>\u2190 IDP Configuration</a></p>")
+        return page(f"{title} \u2014 Connection Error", html), 502
+
+    log.warning("IDP error during %s: %s", title, msg)
+    html = (_ERR_CSS +
+        "<div class='err-box'>"
+        "<h2>\u26a0\ufe0f Identity Provider Error</h2>"
+        "<p>An error occurred while contacting the identity provider.</p>"
+        "</div>"
+        f"<details style='margin-top:12px'><summary>Full error</summary><pre class='code'>{msg}</pre></details>"
+        "<p style='margin-top:16px'><a href='/tools/idpconfig/ui'>\u2190 IDP Configuration</a></p>")
+    return page(f"{title} \u2014 Error", html), 502
 
 def _get_idp_slo(metadata_url: str) -> tuple[str | None, str | None]:
     """Return (HTTP-Redirect URL, HTTP-POST URL) from IdP metadata."""
@@ -160,8 +223,11 @@ def login() -> ResponseReturnValue:
         session["login_next"] = next_url
         session.modified = True
 
-    client = saml_client()
-    reqid, info = client.prepare_for_authenticate()
+    try:
+        client = saml_client()
+        reqid, info = client.prepare_for_authenticate()
+    except Exception as exc:
+        return _ssl_or_metadata_error("SAML Login", exc)
     # info['headers'] is a list of (Name, Value); find the redirect Location
     for k, v in info.get("headers", []):
         if k.lower() == "location":
@@ -175,7 +241,10 @@ def login() -> ResponseReturnValue:
 
 @bp.post("/acs")
 def acs():
-    client = saml_client()
+    try:
+        client = saml_client()
+    except Exception as exc:
+        return _ssl_or_metadata_error("SAML ACS", exc)
     saml_response = request.form.get("SAMLResponse")
     if not saml_response:
         return page("SAML Error", "<p>Missing SAMLResponse</p>")

@@ -285,6 +285,60 @@ entra-protocol-lab/
 4. **Cookie / session lost after login**: If running behind a reverse proxy with HTTPS, ensure `BASE_URL` uses `https://`. SameSite cookie behaviour differs between HTTP and HTTPS, which can cause sessions to be dropped on the redirect back from Entra.
 5. **Session storage growing**: Sessions are stored as files in `/tmp/flask-sessions` with a 4-hour lifetime. On long-running instances, old files may accumulate. Clean up with `find /tmp/flask-sessions -mtime +1 -delete`.
 
+### Trusting a Custom CA Certificate (e.g. AD FS with Internal PKI)
+
+When connecting to an IDP that uses a certificate signed by an internal/private CA (common with AD FS), the app will fail with an SSL error like `CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate`. This happens because Python's `requests` library uses its own CA bundle (`certifi`) instead of the OS trust store.
+
+**Step 1 — Obtain the CA certificate**
+
+Export the root (and any intermediate) CA certificate(s) in **Base-64 encoded X.509 (.cer / .pem)** format. On Windows you can do this from the browser certificate viewer or via `certutil`:
+
+```
+certutil -encode "CA-Root.cer" ca-root.pem
+```
+
+**Step 2 — Add to the OS trust store (Linux / WSL)**
+
+```bash
+sudo cp ca-root.pem /usr/local/share/ca-certificates/ca-root.crt
+sudo update-ca-certificates
+```
+
+Verify with OpenSSL:
+
+```bash
+echo | openssl s_client -connect your-idp.example.com:443 -servername your-idp.example.com 2>&1 | head -5
+# Should show: verify return:1
+```
+
+**Step 3 — Add to Python's certifi bundle**
+
+Python uses its own trust store. Find its location and append the CA cert:
+
+```bash
+# Find the bundle path
+python -c "import certifi; print(certifi.where())"
+
+# Append the CA cert
+cat /etc/ssl/certs/ca-root.pem >> $(python -c "import certifi; print(certifi.where())")
+```
+
+**Permanent alternative** — instead of patching the certifi bundle (which gets overwritten on package updates), set the `REQUESTS_CA_BUNDLE` environment variable to point to the system store:
+
+```bash
+# Add to your .env or shell profile
+export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+```
+
+**Step 4 — Verify from Python**
+
+```bash
+python -c "import requests; r = requests.get('https://your-idp.example.com/.well-known/openid-configuration', timeout=5); print(r.status_code)"
+# Should print: 200
+```
+
+> **Tip:** The IDP Configuration page (`/tools/idpconfig/ui`) has a built-in **Test Connection** button that will immediately show whether the SSL handshake succeeds.
+
 ### Debug Mode
 
 Set `FLASK_DEBUG=1` for detailed error messages and auto-reload during development.
