@@ -1,6 +1,6 @@
 # Entra Protocol Lab
 
-A Flask web application for testing and debugging **SAML** and **OIDC** authentication flows with Microsoft Entra ID (formerly Azure AD). This tool helps developers understand authentication protocols by providing a clear view of tokens, claims, and responses from Entra.
+A Flask web application for testing and debugging **SAML** and **OIDC** authentication flows with Microsoft Entra ID (formerly Azure AD) — or any standards-compliant identity provider. This tool helps developers understand authentication protocols by providing a clear view of tokens, claims, and responses.
 
 ## Features
 
@@ -11,6 +11,7 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 - ✅ **Integration Checker**: Validate claims mapping against application presets (e.g. vCloud Director) with pass/fail/warning results and Entra fix guidance
 - 🩺 **Health Checks**: Verify OIDC and SAML endpoint connectivity and configuration
 - 🔑 **JWT Validator**: Decode and inspect JWT tokens
+- 🔄 **Runtime IDP Configuration**: Switch identity providers on the fly without restarting — connect to Entra, Google, Okta, Auth0, Keycloak, or any custom IDP from a single UI
 
 ## Quick Start
 
@@ -122,6 +123,9 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 | `OIDC_REDIRECT_URI` | Auto-set to BASE_URL + /oidc/callback | No* |
 | `SAML_SP_ENTITY_ID` | SAML Service Provider entity ID | Yes |
 | `SAML_APP_ID` | SAML Enterprise Application ID | Yes |
+| `SAML_IDP_METADATA_URL` | Custom SAML IDP metadata URL (overrides Entra auto-build) | No |
+| `OIDC_METADATA_URL` | Custom OIDC discovery URL (overrides Entra auto-build) | No |
+| `OIDC_SCOPES` | OIDC scopes to request (default: `openid profile email`) | No |
 | `SHOW_FULL_COOKIES` | Show full cookie values in debug | No |
 
 *\* Automatically constructed from BASE_URL - do not set manually*
@@ -151,6 +155,18 @@ The Integration Checker validates whether your Entra token contains the claims a
 5. Review the results — ✅ pass, ❌ fail, ⚠️ warning — each with Entra-specific guidance on how to fix it
 
 > **Tip:** You can login and return directly to the checker using the OIDC/SAML Login links in the navigation bar. The `?next=` parameter redirects you back after authentication.
+
+### Switching Identity Providers at Runtime
+
+The IDP Configuration page lets you point the app at a different identity provider without restarting or editing `.env`.
+
+1. Navigate to `/tools/idpconfig/ui`
+2. Optionally pick a **Quick preset** (Entra, Google, Okta, Auth0, Keycloak) to pre-fill the discovery URLs
+3. Fill in the **Client ID**, **Client Secret**, and any other fields for your target IDP
+4. Click **Apply Changes** — the OIDC client is re-initialized and SAML metadata URL is updated immediately
+5. Use the OIDC/SAML Login links to test against the new IDP
+
+> **Note:** Settings are stored **in memory only** and are lost when the app restarts. Use the **Reset to Env Defaults** button to restore the original `.env` values.
 
 ### Available Endpoints
 
@@ -193,6 +209,12 @@ The Integration Checker validates whether your Entra token contains the claims a
 - `/tools/health/saml` - SAML health check
 - `/tools/health/saml/ui` - SAML health check with UI
 
+#### Tools - IDP Configuration
+- `/tools/idpconfig/ui` - Runtime IDP configuration page
+- `/tools/idpconfig/current` - GET current effective settings
+- `/tools/idpconfig/apply` - POST new settings (JSON body)
+- `/tools/idpconfig/reset` - POST reset to env defaults
+
 ## Docker Support
 
 The application uses the same `.env` file for both local development and Docker deployment.
@@ -229,12 +251,15 @@ entra-protocol-lab/
 │   │   │   └── app.css      # Application styles
 │   │   └── js/
 │   │       ├── jwt-ui.js    # JWT UI JavaScript
-│   │       └── integration-ui.js  # Integration Checker UI JavaScript
+│   │       ├── integration-ui.js  # Integration Checker UI JavaScript
+│   │       └── idpconfig-ui.js    # IDP Configuration UI JavaScript
 │   ├── templates/           # Jinja2 HTML templates
-│   │   └── integration.html # Integration Checker UI page
+│   │   ├── integration.html # Integration Checker UI page
+│   │   └── idpconfig.html   # IDP Configuration UI page
 │   ├── tools/               # Utility tools
 │   │   ├── __init__.py      # Tools module initialization
 │   │   ├── health.py        # Health check endpoints
+│   │   ├── idpconfig.py     # Runtime IDP configuration
 │   │   ├── integration.py   # Integration checker (claims validation)
 │   │   └── jwt.py           # JWT validation tools
 │   └── utils/               # Shared utilities
