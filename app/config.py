@@ -34,10 +34,46 @@ class Settings:
     OIDC_AUTHORITY= _clean(os.getenv("OIDC_AUTHORITY","https://login.microsoftonline.com/common/v2.0"))
     OIDC_EXPECTED_AUDIENCE = OIDC_CLIENT_ID
 
+    OIDC_METADATA_URL = _clean(os.getenv("OIDC_METADATA_URL",
+        f"https://login.microsoftonline.com/{TENANT_ID}/v2.0/.well-known/openid-configuration"))
+    OIDC_SCOPES = _clean(os.getenv("OIDC_SCOPES", "openid profile email"))
+
     SAML_SP_ENTITY_ID = _clean(os.getenv("SAML_SP_ENTITY_ID", "urn:entra-protocol-lab:sp"))
     SAML_APP_ID = _clean(os.getenv("SAML_APP_ID", "SAML_APP_ID"))
     SAML_SIGN_REQUEST = _clean(os.getenv("SAML_SIGN_REQUEST", "false")).lower() == "true"
-    SAML_IDP_METADATA_URL = _clean(_federation_metadata_url(TENANT_ID, SAML_APP_ID))
-    
+    SAML_IDP_METADATA_URL = _clean(os.getenv("SAML_IDP_METADATA_URL",
+        _federation_metadata_url(TENANT_ID, SAML_APP_ID)))
+
 
 settings = Settings()
+
+# ---------------------------------------------------------------------------
+# Runtime override helpers (in-memory only, lost on restart)
+# ---------------------------------------------------------------------------
+
+_CONFIGURABLE_KEYS = frozenset({
+    "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_METADATA_URL",
+    "OIDC_REDIRECT_URI", "OIDC_SCOPES",
+    "SAML_SP_ENTITY_ID", "SAML_IDP_METADATA_URL", "SAML_SIGN_REQUEST",
+})
+
+
+def runtime_set(key: str, value) -> None:
+    """Set a runtime override on the settings instance (shadows the class attr)."""
+    if key not in _CONFIGURABLE_KEYS:
+        raise ValueError(f"Key {key!r} is not runtime-configurable")
+    setattr(settings, key, value)
+
+
+def runtime_get_all() -> dict:
+    """Return current effective values for all configurable keys."""
+    return {k: getattr(settings, k, "") for k in sorted(_CONFIGURABLE_KEYS)}
+
+
+def runtime_reset() -> None:
+    """Remove all runtime overrides, restoring env / defaults."""
+    for key in _CONFIGURABLE_KEYS:
+        try:
+            delattr(settings, key)
+        except AttributeError:
+            pass

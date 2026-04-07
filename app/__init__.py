@@ -11,6 +11,7 @@ from .saml.routes import bp as saml_bp
 from .tools.jwt import bp as jwt_tools_bp
 from .tools.health import bp as health_tools_bp
 from .tools.integration import bp as integration_tools_bp
+from .tools.idpconfig import bp as idpconfig_tools_bp
 from datetime import timedelta
 from .utils.html import page
 
@@ -71,6 +72,7 @@ def create_app() -> Flask:
     app.register_blueprint(jwt_tools_bp, url_prefix="/tools/jwt") # /tools/jwt/...
     app.register_blueprint(health_tools_bp, url_prefix="/tools/health")
     app.register_blueprint(integration_tools_bp, url_prefix="/tools/integration")
+    app.register_blueprint(idpconfig_tools_bp, url_prefix="/tools/idpconfig")
 
 
     # Security headers on every response
@@ -165,6 +167,13 @@ def create_app() -> Flask:
     <li><a href="/tools/health/oidc/ui">/tools/health/oidc/ui</a></li>
     <li><a href="/tools/health/saml">/tools/health/saml</a></li>
     <li><a href="/tools/health/saml/ui">/tools/health/saml/ui</a></li>
+  </ul>
+</details>
+
+<details>
+  <summary>Tools — IDP Configuration</summary>
+  <ul>
+    <li><a href="/tools/idpconfig/ui">/tools/idpconfig/ui</a> — change IDP settings at runtime</li>
   </ul>
 </details>
 

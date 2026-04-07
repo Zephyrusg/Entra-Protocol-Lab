@@ -5,6 +5,7 @@ DEFAULT_LINKS = [
     ("SAML Login", "/saml/login"),
     ("SAML User", "/saml/user"),
     ("SAML Metadata", "/saml/metadata"),
+    ("IDP Config", "/tools/idpconfig/ui"),
 ]
 
 def page(title: str, body: str, *, show_nav: bool = True, links=DEFAULT_LINKS) -> str:

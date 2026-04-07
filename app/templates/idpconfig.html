@@ -1,0 +1,302 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="/static/css/app.css">
+    <script src="/static/js/theme.js"></script>
+    <title>IDP Configuration</title>
+    <style>
+        .config-sections {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 800px) {
+            .config-sections {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .config-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .config-section h2 {
+            margin: 0 0 16px 0;
+            font-size: 1.1rem;
+        }
+
+        .field {
+            margin-bottom: 14px;
+        }
+
+        .field label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 0.88rem;
+        }
+
+        .field input[type="text"],
+        .field input[type="password"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            background: var(--input-bg);
+            color: var(--fg);
+            font-size: 0.88rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
+        .field select {
+            padding: 8px 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            background: var(--input-bg);
+            color: var(--fg);
+            font-size: 0.88rem;
+        }
+
+        .field .hint {
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-top: 3px;
+        }
+
+        .field-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .field-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        .field-row label {
+            margin-bottom: 0;
+        }
+
+        .secret-wrap {
+            position: relative;
+        }
+
+        .secret-wrap input {
+            padding-right: 60px !important;
+        }
+
+        .secret-toggle {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--btn-secondary-bg);
+            color: var(--btn-secondary-fg);
+            border: 1px solid var(--btn-secondary-border);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            cursor: pointer;
+        }
+
+        .actions {
+            margin: 24px 0;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .actions button {
+            padding: 10px 22px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: none;
+            transition: background 0.15s;
+        }
+
+        #apply-btn {
+            background: var(--btn-bg);
+            color: var(--btn-fg);
+        }
+
+        #apply-btn:hover {
+            background: var(--btn-hover);
+        }
+
+        #reset-btn {
+            background: var(--btn-secondary-bg);
+            color: var(--btn-secondary-fg);
+            border: 1px solid var(--btn-secondary-border);
+        }
+
+        #reset-btn:hover {
+            background: var(--btn-secondary-hover);
+        }
+
+        #status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        #status.success {
+            background: var(--badge-pass-bg);
+            color: var(--badge-pass-fg);
+            display: block;
+        }
+
+        #status.error {
+            background: var(--badge-fail-bg);
+            color: var(--badge-fail-fg);
+            display: block;
+        }
+
+        .preset-bar {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .preset-bar label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .info-banner {
+            background: var(--guidance-bg);
+            border-left: 4px solid var(--guidance-border);
+            color: var(--guidance-fg);
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.88rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>IDP Configuration</h1>
+    <nav id="top-nav">
+        <a href="/">Home</a> |
+        <a href="/oidc/login">OIDC Login</a> |
+        <a href="/oidc/user">OIDC User</a> |
+        <a href="/saml/login">SAML Login</a> |
+        <a href="/saml/user">SAML User</a> |
+        <a href="/saml/metadata">SAML Metadata</a> |
+        <a href="/tools/idpconfig/ui"><b>IDP Config</b></a> |
+        <button id="theme-toggle" class="theme-toggle"></button>
+    </nav>
+    <hr />
+
+    <div class="info-banner">
+        Configure identity provider settings at runtime. Changes are stored <b>in memory only</b>
+        and will be lost when the app restarts. Use this to quickly test against different IDPs
+        without editing <code>.env</code>.
+    </div>
+
+    <div class="preset-bar">
+        <label for="idp-preset">Quick preset:</label>
+        <select id="idp-preset">
+            <option value="">— select an IDP —</option>
+            <option value="entra">Microsoft Entra ID</option>
+            <option value="google">Google Workspace</option>
+            <option value="okta">Okta</option>
+            <option value="auth0">Auth0</option>
+            <option value="keycloak">Keycloak</option>
+            <option value="custom">Custom</option>
+        </select>
+        <span class="hint" id="preset-hint" style="color:var(--muted);font-size:0.82rem;"></span>
+    </div>
+
+    <div class="config-sections">
+        <!-- OIDC -->
+        <div class="config-section">
+            <h2>OIDC Settings</h2>
+
+            <div class="field">
+                <label for="OIDC_CLIENT_ID">Client ID</label>
+                <input type="text" id="OIDC_CLIENT_ID" placeholder="e.g. 00000000-0000-0000-0000-000000000000" />
+            </div>
+
+            <div class="field">
+                <label for="OIDC_CLIENT_SECRET">Client Secret</label>
+                <div class="secret-wrap">
+                    <input type="password" id="OIDC_CLIENT_SECRET" placeholder="Client secret value" />
+                    <button type="button" class="secret-toggle" data-target="OIDC_CLIENT_SECRET">show</button>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="OIDC_METADATA_URL">Discovery / Metadata URL</label>
+                <input type="text" id="OIDC_METADATA_URL" placeholder="https://.../.well-known/openid-configuration" />
+                <div class="hint">The OpenID Connect discovery endpoint of the IDP.</div>
+            </div>
+
+            <div class="field">
+                <label for="OIDC_REDIRECT_URI">Redirect URI</label>
+                <input type="text" id="OIDC_REDIRECT_URI" placeholder="https://yourapp/oidc/callback" />
+                <div class="hint">Must match what's configured in the IDP.</div>
+            </div>
+
+            <div class="field">
+                <label for="OIDC_SCOPES">Scopes</label>
+                <input type="text" id="OIDC_SCOPES" placeholder="openid profile email" />
+            </div>
+        </div>
+
+        <!-- SAML -->
+        <div class="config-section">
+            <h2>SAML Settings</h2>
+
+            <div class="field">
+                <label for="SAML_SP_ENTITY_ID">SP Entity ID</label>
+                <input type="text" id="SAML_SP_ENTITY_ID" placeholder="urn:myapp:sp" />
+                <div class="hint">The entity ID this app presents as a Service Provider.</div>
+            </div>
+
+            <div class="field">
+                <label for="SAML_IDP_METADATA_URL">IDP Metadata URL</label>
+                <input type="text" id="SAML_IDP_METADATA_URL" placeholder="https://idp.example.com/metadata" />
+                <div class="hint">URL where the IDP publishes its SAML metadata XML.</div>
+            </div>
+
+            <div class="field">
+                <div class="field-row">
+                    <input type="checkbox" id="SAML_SIGN_REQUEST" />
+                    <label for="SAML_SIGN_REQUEST">Sign AuthnRequests</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button id="apply-btn">Apply Changes</button>
+        <button id="reset-btn">Reset to Env Defaults</button>
+    </div>
+    <div id="status"></div>
+
+    <script src="/static/js/idpconfig-ui.js"></script>
+</body>
+
+</html>
