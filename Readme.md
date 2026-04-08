@@ -313,27 +313,37 @@ echo | openssl s_client -connect your-idp.example.com:443 -servername your-idp.e
 
 **Step 3 — Add to Python's certifi bundle**
 
-Python uses its own trust store. Find its location and append the CA cert:
+This project uses **uv** to manage its Python environment. The `requests` library inside the uv-managed virtualenv uses its own CA bundle (`certifi`), which does not include your internal CA by default. Find its location and append the CA cert:
 
 ```bash
-# Find the bundle path
-python -c "import certifi; print(certifi.where())"
+# Find the bundle path (note: use uv run to execute inside the project venv)
+uv run python -c "import certifi; print(certifi.where())"
+# Example output: .venv/lib/python3.14/site-packages/certifi/cacert.pem
 
 # Append the CA cert
-cat /etc/ssl/certs/ca-root.pem >> $(python -c "import certifi; print(certifi.where())")
+cat /etc/ssl/certs/ca-root.pem >> $(uv run python -c "import certifi; print(certifi.where())")
 ```
 
-**Permanent alternative** — instead of patching the certifi bundle (which gets overwritten on package updates), set the `REQUESTS_CA_BUNDLE` environment variable to point to the system store:
+> **⚠️ Note:** this patch is fragile — running `uv sync`, `uv lock`, or updating the `certifi` package will overwrite the bundle and you will need to append again.
+
+**Permanent alternative** — instead of patching the certifi bundle, set the `REQUESTS_CA_BUNDLE` environment variable to point to the system trust store. Add it to your `.env` file so the app picks it up automatically:
 
 ```bash
-# Add to your .env or shell profile
+# .env
+REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+```
+
+Or export it in your shell before running the app:
+
+```bash
 export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+uv run run.py
 ```
 
 **Step 4 — Verify from Python**
 
 ```bash
-python -c "import requests; r = requests.get('https://your-idp.example.com/.well-known/openid-configuration', timeout=5); print(r.status_code)"
+uv run python -c "import requests; r = requests.get('https://your-idp.example.com/.well-known/openid-configuration', timeout=5); print(r.status_code)"
 # Should print: 200
 ```
 
