@@ -309,6 +309,18 @@ entra-protocol-lab/
 3. **SAML fails with cryptic XML error**: Make sure `xmlsec1` is installed (`apt install xmlsec1` or `brew install libxmlsec1` on macOS). Without it, SAML signature verification fails silently.
 4. **Cookie / session lost after login**: If running behind a reverse proxy with HTTPS, ensure `BASE_URL` uses `https://`. SameSite cookie behaviour differs between HTTP and HTTPS, which can cause sessions to be dropped on the redirect back from Entra.
 5. **Session storage growing**: Sessions are stored as files in `/tmp/flask-sessions` with a 4-hour lifetime. On long-running instances, old files may accumulate. Clean up with `find /tmp/flask-sessions -mtime +1 -delete`.
+6. **WSL2 — cannot reach corporate / VPN endpoints**: WSL2 uses a virtual NAT network by default and does not inherit VPN routes or DNS from Windows. Enable **mirrored networking** so WSL shares the Windows network stack directly:
+
+   Create or edit `C:\Users\<YourUsername>\.wslconfig` on Windows:
+   ```ini
+   [wsl2]
+   networkingMode=mirrored
+   ```
+   Then restart WSL from PowerShell:
+   ```powershell
+   wsl --shutdown
+   ```
+   Reopen your WSL terminal and retry. This is the most common reason one developer can reach an internal AD FS / ADFS endpoint while a colleague on the same VPN cannot.
 
 ### Trusting a Custom CA Certificate (e.g. AD FS with Internal PKI)
 
