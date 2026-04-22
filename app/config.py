@@ -77,3 +77,54 @@ def runtime_reset() -> None:
             delattr(settings, key)
         except AttributeError:
             pass
+
+
+# ---------------------------------------------------------------------------
+# IDP certificate override (in-memory only, lost on restart)
+# Stored in a named temp file so pysaml2 can reference it by path.
+# ---------------------------------------------------------------------------
+
+import tempfile as _tempfile
+import os as _os
+
+_idp_cert_pem: "str | None" = None
+_idp_cert_tmp_path: "str | None" = None
+
+
+def set_idp_cert(pem: str) -> str:
+    """Store a PEM certificate for the IDP, write to a temp file, return the path."""
+    global _idp_cert_pem, _idp_cert_tmp_path
+    _clear_cert_file()
+    _idp_cert_pem = pem
+    fd, path = _tempfile.mkstemp(prefix="idp_cert_", suffix=".pem")
+    with _os.fdopen(fd, "w") as f:
+        f.write(pem)
+    _idp_cert_tmp_path = path
+    return path
+
+
+def get_idp_cert_path() -> "str | None":
+    """Return the temp-file path of the current IDP cert, or None if not set."""
+    return _idp_cert_tmp_path
+
+
+def get_idp_cert_pem() -> "str | None":
+    """Return the raw PEM string of the current IDP cert, or None."""
+    return _idp_cert_pem
+
+
+def clear_idp_cert() -> None:
+    """Remove the in-memory IDP cert and delete the temp file."""
+    global _idp_cert_pem, _idp_cert_tmp_path
+    _clear_cert_file()
+    _idp_cert_pem = None
+    _idp_cert_tmp_path = None
+
+
+def _clear_cert_file() -> None:
+    global _idp_cert_tmp_path
+    if _idp_cert_tmp_path and _os.path.exists(_idp_cert_tmp_path):
+        try:
+            _os.unlink(_idp_cert_tmp_path)
+        except OSError:
+            pass

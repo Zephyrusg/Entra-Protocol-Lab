@@ -1,9 +1,15 @@
 import ssl
 import logging
+import datetime
 from flask import Blueprint, jsonify, request, render_template
 from flask.typing import ResponseReturnValue
 import requests
-from ..config import settings, runtime_set, runtime_get_all, runtime_reset
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from ..config import (
+    settings, runtime_set, runtime_get_all, runtime_reset,
+    set_idp_cert, get_idp_cert_pem, clear_idp_cert,
+)
 from ..oidc.client import reregister_oidc
 
 log = logging.getLogger(__name__)
@@ -59,12 +65,87 @@ def apply_settings() -> ResponseReturnValue:
 @bp.post("/reset")
 def reset_settings() -> ResponseReturnValue:
     runtime_reset()
+    clear_idp_cert()
     try:
         reregister_oidc()
     except Exception:
         pass  # best-effort re-init with original env values
     return jsonify({"ok": True, "settings": runtime_get_all()})
 
+
+# ---------------------------------------------------------------------------
+# IDP certificate endpoints
+# ---------------------------------------------------------------------------
+
+def _cert_info(cert) -> dict:
+    """Extract display-friendly info from a cryptography x509 Certificate."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    not_after = (
+        cert.not_valid_after_utc
+        if hasattr(cert, "not_valid_after_utc")
+        else cert.not_valid_after.replace(tzinfo=datetime.timezone.utc)
+    )
+    not_before = (
+        cert.not_valid_before_utc
+        if hasattr(cert, "not_valid_before_utc")
+        else cert.not_valid_before.replace(tzinfo=datetime.timezone.utc)
+    )
+    return {
+        "subject": cert.subject.rfc4514_string(),
+        "issuer": cert.issuer.rfc4514_string(),
+        "not_before": not_before.isoformat(),
+        "not_after": not_after.isoformat(),
+        "serial": str(cert.serial_number),
+        "expired": now > not_after,
+    }
+
+
+@bp.post("/upload-idp-cert")
+def upload_idp_cert() -> ResponseReturnValue:
+    """Accept a PEM certificate (JSON body with 'pem' key, or multipart file upload)."""
+    pem: str | None = None
+
+    data = request.get_json(silent=True)
+    if data and isinstance(data, dict) and data.get("pem"):
+        pem = str(data["pem"]).strip()
+    elif "cert_file" in request.files:
+        raw = request.files["cert_file"].read(64 * 1024)  # 64 KB max
+        try:
+            pem = raw.decode("utf-8").strip()
+        except UnicodeDecodeError:
+            return jsonify({"ok": False, "error": "File is not valid UTF-8 text"}), 400
+
+    if not pem:
+        return jsonify({"ok": False, "error": "No certificate provided"}), 400
+
+    # Validate the PEM before storing
+    try:
+        cert = x509.load_pem_x509_certificate(pem.encode(), default_backend())
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"Invalid PEM certificate: {exc}"}), 400
+
+    set_idp_cert(pem)
+    return jsonify({"ok": True, "cert": _cert_info(cert)})
+
+
+@bp.post("/clear-idp-cert")
+def clear_idp_cert_route() -> ResponseReturnValue:
+    """Remove the uploaded IDP certificate from memory."""
+    clear_idp_cert()
+    return jsonify({"ok": True})
+
+
+@bp.get("/idp-cert-status")
+def idp_cert_status() -> ResponseReturnValue:
+    """Return info about the currently loaded IDP certificate."""
+    pem = get_idp_cert_pem()
+    if not pem:
+        return jsonify({"loaded": False})
+    try:
+        cert = x509.load_pem_x509_certificate(pem.encode(), default_backend())
+        return jsonify({"loaded": True, "cert": _cert_info(cert)})
+    except Exception:
+        return jsonify({"loaded": False})
 
 def _probe_url(url: str, label: str) -> dict:
     """Probe a URL and return connectivity / SSL / content status."""

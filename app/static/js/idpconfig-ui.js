@@ -216,9 +216,94 @@
     document.addEventListener("DOMContentLoaded", function () {
         loadCurrent();
         initSecretToggles();
+        initCertSection();
         $("idp-preset").addEventListener("change", onPresetChange);
         $("apply-btn").addEventListener("click", applySettings);
         $("test-btn").addEventListener("click", testConnectivity);
         $("reset-btn").addEventListener("click", resetSettings);
     });
+
+    // ── IDP Certificate ──
+
+    function loadCertStatus() {
+        fetch("/tools/idpconfig/idp-cert-status")
+            .then(function (r) { return r.json(); })
+            .then(function (data) { renderCertBadge(data); })
+            .catch(function () { renderCertBadge({ loaded: false }); });
+    }
+
+    function renderCertBadge(data) {
+        var el = $("cert-status-badge");
+        if (!data.loaded) {
+            el.className = "empty";
+            el.innerHTML = "No certificate loaded — SAML metadata will be fetched without a pinned cert.";
+            return;
+        }
+        var c = data.cert;
+        var expiry = c.expired
+            ? "<b style='color:inherit'>EXPIRED</b>"
+            : "Valid until " + esc(new Date(c.not_after).toLocaleString());
+        el.className = c.expired ? "expired" : "loaded";
+        el.innerHTML =
+            (c.expired ? "\u274c Certificate expired" : "\u2705 Certificate loaded") +
+            "<table>" +
+            "<tr><td>Subject</td><td>" + esc(c.subject) + "</td></tr>" +
+            "<tr><td>Issuer</td><td>" + esc(c.issuer) + "</td></tr>" +
+            "<tr><td>Expiry</td><td>" + expiry + "</td></tr>" +
+            "</table>";
+    }
+
+    function uploadCert() {
+        var pem = $("cert-pem-input").value.trim();
+        if (!pem) { showStatus("Paste a PEM certificate first.", false); return; }
+        $("cert-upload-btn").disabled = true;
+        fetch("/tools/idpconfig/upload-idp-cert", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pem: pem }),
+        })
+            .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+            .then(function (res) {
+                if (res.data.ok) {
+                    showStatus("Certificate uploaded successfully.", true);
+                    renderCertBadge({ loaded: true, cert: res.data.cert });
+                } else {
+                    showStatus("Error: " + (res.data.error || "Unknown error"), false);
+                }
+            })
+            .catch(function (e) { showStatus("Upload failed: " + e, false); })
+            .finally(function () { $("cert-upload-btn").disabled = false; });
+    }
+
+    function clearCert() {
+        $("cert-clear-btn").disabled = true;
+        fetch("/tools/idpconfig/clear-idp-cert", { method: "POST" })
+            .then(function () {
+                $("cert-pem-input").value = "";
+                renderCertBadge({ loaded: false });
+                showStatus("Certificate cleared.", true);
+            })
+            .catch(function (e) { showStatus("Clear failed: " + e, false); })
+            .finally(function () { $("cert-clear-btn").disabled = false; });
+    }
+
+    function initCertSection() {
+        loadCertStatus();
+
+        // File picker → populate textarea
+        $("cert-file-input").addEventListener("change", function () {
+            var file = this.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function (ev) {
+                $("cert-pem-input").value = ev.target.result;
+            };
+            reader.readAsText(file);
+            // Reset so the same file can be re-picked
+            this.value = "";
+        });
+
+        $("cert-upload-btn").addEventListener("click", uploadCert);
+        $("cert-clear-btn").addEventListener("click", clearCert);
+    }
 })();

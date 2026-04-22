@@ -246,6 +246,124 @@
         #test-results h3 {
             margin: 16px 0 8px;
         }
+
+        /* ── IDP certificate section ── */
+        .cert-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .cert-section h2 {
+            margin: 0 0 4px 0;
+            font-size: 1.1rem;
+        }
+
+        .cert-section .hint {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+
+        .cert-input-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        #cert-pem-input {
+            flex: 1;
+            min-width: 260px;
+            min-height: 100px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.78rem;
+            padding: 8px 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            background: var(--input-bg);
+            color: var(--fg);
+            resize: vertical;
+        }
+
+        .cert-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .cert-actions button,
+        .cert-file-label {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border: 1px solid var(--btn-secondary-border);
+            background: var(--btn-secondary-bg);
+            color: var(--btn-secondary-fg);
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .cert-actions button:hover,
+        .cert-file-label:hover {
+            background: var(--btn-secondary-hover);
+        }
+
+        #cert-upload-btn {
+            border-color: var(--btn-bg) !important;
+            background: var(--btn-bg) !important;
+            color: var(--btn-fg) !important;
+        }
+
+        #cert-upload-btn:hover {
+            background: var(--btn-hover) !important;
+        }
+
+        #cert-status-badge {
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        #cert-status-badge.loaded {
+            display: block;
+            background: var(--badge-pass-bg);
+            color: var(--badge-pass-fg);
+            border: 1px solid var(--badge-pass-fg);
+        }
+
+        #cert-status-badge.expired {
+            display: block;
+            background: var(--badge-fail-bg);
+            color: var(--badge-fail-fg);
+            border: 1px solid var(--badge-fail-fg);
+        }
+
+        #cert-status-badge.empty {
+            display: block;
+            background: var(--guidance-bg);
+            color: var(--guidance-fg);
+            border-left: 4px solid var(--guidance-border);
+        }
+
+        #cert-status-badge table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+            margin-top: 6px;
+        }
+
+        #cert-status-badge td:first-child {
+            font-weight: 600;
+            padding-right: 12px;
+            white-space: nowrap;
+        }
     </style>
 </head>
 
@@ -351,6 +469,29 @@
     </div>
     <div id="status"></div>
     <div id="test-results"></div>
+
+    <!-- IDP Certificate Upload -->
+    <div class="cert-section">
+        <h2>IDP Certificate (temporary)</h2>
+        <div class="hint">
+            Upload the IDP's SSL/TLS certificate in PEM format. This is used when the IDP
+            has a self-signed certificate or one that is not trusted by the system. Stored
+            <b>in memory only</b> — cleared on reset or restart.
+        </div>
+        <div class="cert-input-row">
+            <textarea id="cert-pem-input"
+                placeholder="Paste PEM certificate here&#10;-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
+            <div class="cert-actions">
+                <label class="cert-file-label">
+                    📂 Load from file
+                    <input type="file" id="cert-file-input" accept=".pem,.crt,.cer" style="display:none">
+                </label>
+                <button id="cert-upload-btn">Upload cert</button>
+                <button id="cert-clear-btn">Clear cert</button>
+            </div>
+        </div>
+        <div id="cert-status-badge"></div>
+    </div>
 
     <script src="/static/js/idpconfig-ui.js"></script>
 </body>

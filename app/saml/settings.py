@@ -8,7 +8,7 @@ from saml2.client import Saml2Client
 from saml2.config import SPConfig
 from saml2 import BINDING_HTTP_POST
 
-from ..config import settings
+from ..config import settings, get_idp_cert_path
 
 
 def sp_config() -> SPConfig:
@@ -48,7 +48,10 @@ def sp_config() -> SPConfig:
         # Fetch IdP metadata remotely (recommended)
         "metadata": {
             "remote": [
-                {"url": md_url}
+                {
+                    "url": md_url,
+                    **( {"cert": get_idp_cert_path()} if get_idp_cert_path() else {} ),
+                }
             ]
         },
     }
