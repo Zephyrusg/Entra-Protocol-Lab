@@ -146,18 +146,102 @@ def jwt_validate_route():
 @bp.get("/ui")
 def ui_jwt():
     html = """
-<!doctype html><meta charset='utf-8'/><meta name='viewport' content='width=device-width, initial-scale=1'/>
-<title>JWT Validator • Entra Test App</title>
-<style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:24px}.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}textarea,input{width:100%}textarea{height:180px}pre{background:#1118270d;padding:12px;border-radius:8px;overflow:auto}.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;margin-right:6px}.ok{background:#d1fae5}.warn{background:#fef3c7}.fail{background:#fee2e2}.card{border:1px solid #e5e7eb;border-radius:12px;padding:16px}button{padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#111827;color:#fff;cursor:pointer}</style>
-<h1>JWT Validator</h1>
-<div class='row'><div class='card'>
-  <label>Authority</label><input id='authority' placeholder='https://login.microsoftonline.com/common/v2.0'/>
-  <label style='margin-top:8px;display:block;'>Expected Audience (Client ID)</label><input id='aud' placeholder='<your-client-id>'/>
-  <label style='margin-top:8px;display:block;'>JWT</label><textarea id='token' placeholder='eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'></textarea>
-  <button id='btn'>Validate</button>
-</div><div class='card'>
-  <div id='status'></div><h3>Header</h3><pre id='hdr'></pre><h3>Claims</h3><pre id='claims'></pre><h3>Full Result</h3><pre id='raw'></pre>
-</div></div>
-<script src="{{ url_for('static', filename='js/jwt-ui.js') }}"></script>
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'/>
+  <meta name='viewport' content='width=device-width, initial-scale=1'/>
+  <title>JWT Validator • Entra Test App</title>
+  <link rel='stylesheet' href='/static/css/app.css'/>
+  <script src='/static/js/theme.js'></script>
+  <style>
+    .jwt-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 700px) {
+      .jwt-grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      background: var(--card-bg);
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.88rem;
+      margin-bottom: 4px;
+    }
+    label + label, button { margin-top: 8px; }
+    input[type=text], input:not([type]), textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border: 1px solid var(--input-border);
+      border-radius: 6px;
+      background: var(--input-bg);
+      color: var(--fg);
+      font-size: 0.88rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    textarea { height: 180px; resize: vertical; }
+    button#btn {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      background: var(--btn-bg);
+      color: var(--btn-fg);
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    button#btn:hover { background: var(--btn-hover); }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-right: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .badge.ok   { background: var(--badge-pass-bg); color: var(--badge-pass-fg); }
+    .badge.warn { background: var(--badge-warn-bg); color: var(--badge-warn-fg); }
+    .badge.fail { background: var(--badge-fail-bg); color: var(--badge-fail-fg); }
+  </style>
+</head>
+<body>
+  <h1>JWT Validator</h1>
+  <nav id="top-nav">
+    <a href="/">Home</a> |
+    <a href="/oidc/login">OIDC Login</a> |
+    <a href="/saml/login">SAML Login</a> |
+    <a href="/tools/idpconfig/ui">IDP Config</a> |
+    <a href="/tools/jwt/ui"><b>JWT Validator</b></a> |
+    <button id="theme-toggle" class="theme-toggle"></button>
+  </nav>
+  <hr/>
+  <div class='jwt-grid'>
+    <div class='card'>
+      <label for='authority'>Authority</label>
+      <input id='authority' type='text' placeholder='https://login.microsoftonline.com/common/v2.0'/>
+      <label for='aud'>Expected Audience (Client ID)</label>
+      <input id='aud' type='text' placeholder='&lt;your-client-id&gt;'/>
+      <label for='token'>JWT</label>
+      <textarea id='token' placeholder='eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'></textarea>
+      <button id='btn'>Validate</button>
+    </div>
+    <div class='card'>
+      <div id='status'></div>
+      <h3>Header</h3><pre class='code' id='hdr'></pre>
+      <h3>Claims</h3><pre class='code' id='claims'></pre>
+      <h3>Full Result</h3><pre class='code' id='raw'></pre>
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='js/jwt-ui.js') }}"></script>
+</body>
+</html>
 """
     return render_template_string(html)
