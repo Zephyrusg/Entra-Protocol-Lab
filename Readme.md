@@ -12,6 +12,7 @@ A Flask web application for testing and debugging **SAML** and **OIDC** authenti
 - 🩺 **Health Checks**: Verify OIDC and SAML endpoint connectivity and configuration
 - 🔑 **JWT Validator**: Decode and inspect JWT tokens
 - 🔄 **Runtime IDP Configuration**: Switch identity providers on the fly without restarting — connect to Entra, Google, Okta, Auth0, Keycloak, or any custom IDP from a single UI
+- 📜 **Temporary IDP Certificate Upload**: Upload a test IDP certificate (PEM) directly from the browser to trust a self-signed or private-CA-issued IDP without touching the OS trust store
 
 ## Quick Start
 
@@ -168,6 +169,27 @@ The IDP Configuration page lets you point the app at a different identity provid
 
 > **Note:** Settings are stored **in memory only** and are lost when the app restarts. Use the **Reset to Env Defaults** button to restore the original `.env` values.
 
+### Uploading a Temporary IDP Certificate
+
+When testing against an IDP that uses a self-signed certificate or one issued by a private/internal CA, SAML metadata fetching will fail with an SSL error. As a quick alternative to modifying the OS trust store, you can upload the IDP's certificate directly from the IDP Configuration page.
+
+1. Navigate to `/tools/idpconfig/ui`
+2. Scroll to the **IDP Certificate (temporary)** section at the bottom
+3. Either:
+   - Paste the PEM-encoded certificate into the text area, **or**
+   - Click **📂 Load from file** to pick a `.pem`, `.crt`, or `.cer` file from your machine
+4. Click **Upload cert** — the certificate is validated, stored in memory, and its subject/issuer/expiry details are shown
+5. Proceed with SAML login as normal — pysaml2 will use the uploaded cert to verify the metadata connection
+
+To remove the certificate, click **Clear cert** or use the **Reset to Env Defaults** button (which also wipes the cert).
+
+> **Note:** The certificate is stored **in memory only** and is lost when the app restarts. This is intentional — it is designed for short-lived testing sessions. For a permanent fix, see the [Trusting a Custom CA Certificate](#trusting-a-custom-ca-certificate-eg-ad-fs-with-internal-pki) section.
+
+> **Tip:** The certificate must be in **PEM format** (base-64 encoded, starting with `-----BEGIN CERTIFICATE-----`). If you only have a DER/binary `.cer` file, convert it first:
+> ```bash
+> openssl x509 -in idp-cert.cer -inform DER -out idp-cert.pem -outform PEM
+> ```
+
 ### Available Endpoints
 
 #### Main Endpoints
@@ -213,7 +235,10 @@ The IDP Configuration page lets you point the app at a different identity provid
 - `/tools/idpconfig/ui` - Runtime IDP configuration page
 - `/tools/idpconfig/current` - GET current effective settings
 - `/tools/idpconfig/apply` - POST new settings (JSON body)
-- `/tools/idpconfig/reset` - POST reset to env defaults
+- `/tools/idpconfig/reset` - POST reset to env defaults (also clears any uploaded cert)
+- `/tools/idpconfig/upload-idp-cert` - POST upload IDP certificate (JSON `{"pem": "..."}` or multipart `cert_file`)
+- `/tools/idpconfig/clear-idp-cert` - POST remove the in-memory IDP certificate
+- `/tools/idpconfig/idp-cert-status` - GET info about the currently loaded IDP certificate
 
 ## Docker Support
 
@@ -348,6 +373,7 @@ uv run python -c "import requests; r = requests.get('https://your-idp.example.co
 ```
 
 > **Tip:** The IDP Configuration page (`/tools/idpconfig/ui`) has a built-in **Test Connection** button that will immediately show whether the SSL handshake succeeds.
+> For a quicker workaround during testing, use the **IDP Certificate (temporary)** section on the same page to upload the IDP's certificate directly without touching the OS trust store.
 
 ### Debug Mode
 
