@@ -89,10 +89,17 @@ import os as _os
 
 _idp_cert_pem: "str | None" = None
 _idp_cert_tmp_path: "str | None" = None
+# Preserve whatever REQUESTS_CA_BUNDLE was set before any cert upload,
+# so we can restore it cleanly on clear.
+_original_ca_bundle: "str | None" = _os.environ.get("REQUESTS_CA_BUNDLE")
 
 
 def set_idp_cert(pem: str) -> str:
-    """Store a PEM certificate for the IDP, write to a temp file, return the path."""
+    """Store a PEM certificate for the IDP, write to a temp file, return the path.
+
+    Also sets REQUESTS_CA_BUNDLE so that pysaml2 and all other requests-based
+    HTTP calls automatically trust the cert for the lifetime of the process.
+    """
     global _idp_cert_pem, _idp_cert_tmp_path
     _clear_cert_file()
     _idp_cert_pem = pem
@@ -100,6 +107,7 @@ def set_idp_cert(pem: str) -> str:
     with _os.fdopen(fd, "w") as f:
         f.write(pem)
     _idp_cert_tmp_path = path
+    _os.environ["REQUESTS_CA_BUNDLE"] = path
     return path
 
 
@@ -114,11 +122,16 @@ def get_idp_cert_pem() -> "str | None":
 
 
 def clear_idp_cert() -> None:
-    """Remove the in-memory IDP cert and delete the temp file."""
+    """Remove the in-memory IDP cert, delete the temp file, and restore REQUESTS_CA_BUNDLE."""
     global _idp_cert_pem, _idp_cert_tmp_path
     _clear_cert_file()
     _idp_cert_pem = None
     _idp_cert_tmp_path = None
+    # Restore the env var to its original state (pre-upload)
+    if _original_ca_bundle is None:
+        _os.environ.pop("REQUESTS_CA_BUNDLE", None)
+    else:
+        _os.environ["REQUESTS_CA_BUNDLE"] = _original_ca_bundle
 
 
 def _clear_cert_file() -> None:
