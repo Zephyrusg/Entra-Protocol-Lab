@@ -8,7 +8,7 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from ..config import (
     settings, runtime_set, runtime_get_all, runtime_reset,
-    set_idp_cert, get_idp_cert_pem, clear_idp_cert,
+    set_idp_cert, get_idp_cert_pem, get_idp_cert_path, clear_idp_cert,
 )
 from ..oidc.client import reregister_oidc
 
@@ -155,8 +155,9 @@ def _probe_url(url: str, label: str) -> dict:
     if not url or not url.startswith("http"):
         result["error"] = "No URL configured"
         return result
+    cert_path = get_idp_cert_path()
     try:
-        resp = requests.get(url, timeout=8)
+        resp = requests.get(url, timeout=8, verify=cert_path if cert_path else True)
         result["reachable"] = True
         result["ssl_ok"] = url.startswith("https://")
         result["status_code"] = resp.status_code
